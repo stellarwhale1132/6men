@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海后模擬器</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Noto Sans TC', 'Inter', sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at top left, #2e1065 0%, #0f172a 55%, #1e1b4b 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .phone-frame {
+      box-shadow: 0 25px 60px -15px rgba(236, 72, 153, 0.35), 0 0 0 10px #1e293b, 0 0 0 12px #475569;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-120%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast-anim {
+      animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.5); }
+      50% { box-shadow: 0 0 0 8px rgba(236, 72, 153, 0); }
+    }
+    .story-ring {
+      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      padding: 2px;
+    }
+    .pulse-ring {
+      animation: pulseGlow 2s infinite;
+    }
+  </style>
+</head>
+<body class="p-2 sm:p-4 md:p-6 flex flex-col items-center justify-center min-h-screen">
+
+  <!-- Top Header / Game Bar -->
+  <header class="w-full max-w-6xl flex flex-wrap items-center justify-between gap-3 mb-4 px-3 py-2.5 rounded-2xl bg-slate-900/80 border border-pink-500/30 backdrop-blur-md">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-xl shadow-lg shadow-pink-500/30">
+        👑
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-black tracking-wide bg-gradient-to-r from-pink-300 via-rose-200 to-purple-300 bg-clip-text text-transparent">
+          海后模擬器
+        </h1>
+        <p class="text-xs text-slate-400">6 位男主同時曖昧・小心別翻車被 PO 文公審</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs">
+        <span>📅</span>
+        <span id="headerDayText" class="font-bold text-pink-300">第 1 天 / 共 5 天</span>
+      </div>
+      <div class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs">
+        <span>💰 小金庫</span>
+        <span id="headerMoneyText" class="font-bold text-amber-300">$12,000</span>
+      </div>
+      <div class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs">
+        <span>✨ 魅力值</span>
+        <span id="headerCharmText" class="font-bold text-purple-300">65</span>
+      </div>
+      <button id="btnToggleMute" type="button" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-medium transition flex items-center gap-1">
+        <span id="muteIcon">🔊</span> <span id="muteLabel" class="hidden sm:inline">音效開啟</span>
+      </button>
+      <button id="btnResetGame" type="button" class="px-3 py-1.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-xs font-medium transition">
+        🔄 重新開局
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace: Phone + Desktop Dashboard -->
+  <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- Left/Center Column: Smartphone Simulator -->
+    <div class="lg:col-span-5 flex justify-center">
+      <div class="phone-frame relative w-full max-w-[390px] h-[760px] bg-slate-950 rounded-[44px] overflow-hidden flex flex-col border border-slate-800 select-none">
+
+        <!-- Phone Top Status Bar & Dynamic Island -->
+        <div class="relative z-30 bg-slate-950/90 backdrop-blur px-6 pt-3 pb-2 flex items-center justify-between text-xs font-semibold text-slate-200 border-b border-slate-800/60">
+          <span id="phoneClock">21:30</span>
+          <div class="w-24 h-5 bg-black rounded-full border border-slate-800 flex items-center justify-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[10px] text-slate-400">5G 訊號滿格</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span>📶</span>
+            <span>🔋 98%</span>
+          </div>
+        </div>
+
+        <!-- Push Notification Banner inside Phone -->
+        <div id="phoneToastContainer" class="absolute top-12 left-3 right-3 z-40 pointer-events-none flex flex-col gap-2"></div>
+
+        <!-- Phone Screen Content Area -->
+        <div id="phoneScreen" class="flex-1 overflow-y-auto no-scrollbar relative bg-slate-900 text-slate-100">
+          <!-- Rendered dynamically via JS -->
+        </div>
+
+        <!-- Phone Bottom Home Bar & App Switcher Dock -->
+        <nav class="bg-slate-950/95 border-t border-slate-800 px-3 py-2 z-30">
+          <div class="grid grid-cols-6 gap-1 text-center">
+            <button type="button" data-app="home" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">📱</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">桌面</span>
+            </button>
+            <button type="button" data-app="line" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">💬</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">LINE</span>
+              <span id="dockLineBadge" class="hidden absolute top-0.5 right-2 bg-rose-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            </button>
+            <button type="button" data-app="ig" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">📸</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">IG/串文</span>
+            </button>
+            <button type="button" data-app="shop" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">🛍️</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">網購</span>
+              <span id="dockCartBadge" class="hidden absolute top-0.5 right-2 bg-amber-500 text-slate-950 text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            </button>
+            <button type="button" data-app="food" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">🍔</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">外送</span>
+            </button>
+            <button type="button" data-app="radar" class="nav-app-btn flex flex-col items-center py-1 rounded-xl hover:bg-slate-800/70 transition relative">
+              <span class="text-lg">📒</span>
+              <span class="text-[10px] text-slate-300 mt-0.5">備忘錄</span>
+            </button>
+          </div>
+          <div class="w-28 h-1 bg-slate-600 rounded-full mx-auto mt-2"></div>
+        </nav>
+
+      </div>
+    </div>
+
+    <!-- Right Column: Fishpond Status Monitor & 9 Endings Tracker -->
+    <div class="lg:col-span-7 flex flex-col gap-4">
+
+      <!-- Game Progress & Day Action Card -->
+      <section class="rounded-2xl bg-slate-900/85 border border-slate-800 p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-pink-300 flex items-center gap-2">
+              <span>🎯</span> 海后生存守則＆行程進度
+            </h2>
+            <p id="dayMissionDesc" class="text-xs text-slate-300 mt-0.5">
+              回覆男主們的 LINE 訊息、發限時動態設定隱藏名單、用網購與外送安撫人心！
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnNextDay" type="button" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white text-xs font-bold shadow-lg shadow-pink-500/25 transition">
+              🌙 結束今天（推進至下一天）
+            </button>
+            <button id="btnTriggerEndingNow" type="button" class="px-3 py-2 rounded-xl bg-purple-900/70 hover:bg-purple-800 border border-purple-500/40 text-purple-200 text-xs font-semibold transition">
+              🎬 立即結算結局
+            </button>
+          </div>
+        </div>
+
+        <!-- Warning Meter -->
+        <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex-1 w-full">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">🚨 翻車危機警報（任一男主懷疑度 ≥ 85 將觸發聯合公審！）</span>
+              <span id="maxSuspicionText" class="font-bold text-emerald-400">最高懷疑度：15%</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="maxSuspicionBar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-600 transition-all duration-500" style="width: 15%"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 Male Leads Live Status Grid -->
+      <section class="rounded-2xl bg-slate-900/85 border border-slate-800 p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <span>💘</span> 六大男主即時狀態（點擊小卡可直接開 LINE 曖昧）
+          </h2>
+          <span class="text-[11px] text-slate-400">頭像支援隨時替換圖片</span>
+        </div>
+        <div id="desktopBoysGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- 9 Endings Collection Card -->
+      <section class="rounded-2xl bg-slate-900/85 border border-slate-800 p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-amber-300 flex items-center gap-2">
+              <span>🏆</span> 九大結局圖鑑（已解鎖 <span id="unlockedCountText">0</span> / 9）
+            </h2>
+            <p class="text-xs text-slate-400">不同對話選項、限動隱藏設定與送禮策略會導向 9 種截然不同的結局</p>
+          </div>
+        </div>
+        <div id="endingsGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Ending Modal Overlay -->
+  <div id="endingModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-pink-500/40 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative overflow-hidden">
+      <div id="endingModalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // Sound Effects Engine (Web Audio API)
+    // ==========================================
+    const SoundFX = {
+      ctx: null,
+      muted: false,
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+      play(type) {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          if (type === 'pop') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc.start(now);
+            osc.stop(now + 0.09);
+          } else if (type === 'coin') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(987.77, now);
+            osc.frequency.setValueAtTime(1318.51, now + 0.07);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
+          } else if (type === 'danger') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.linearRampToValueAtTime(140, now + 0.25);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.start(now);
+            osc.stop(now + 0.28);
+          } else if (type === 'fanfare') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.1);
+            osc.frequency.setValueAtTime(783.99, now + 0.2);
+            osc.frequency.setValueAtTime(1046.5, now + 0.3);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            osc.start(now);
+            osc.stop(now + 0.55);
+          }
+        } catch (e) {}
+      }
+    };
+
+    // Generate sleek SVG portrait data URI for each male lead (ready to swap when user uploads photos)
+    function makeBoyAvatar(bg1, bg2, hairColor, suitColor, emoji, label) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="${bg1}"/>
+            <stop offset="100%" stop-color="${bg2}"/>
+          </linearGradient>
+        </defs>
+        <rect width="160" height="160" rx="32" fill="url(#g)"/>
+        <circle cx="80" cy="62" r="28" fill="#fde6d8"/>
+        <path d="M50 58 C50 30, 110 30, 110 58 C102 45, 58 45, 50 58 Z" fill="${hairColor}"/>
+        <path d="M34 150 C34 108, 126 108, 126 150 Z" fill="${suitColor}"/>
+        <circle cx="70" cy="64" r="3" fill="#1e293b"/>
+        <circle cx="90" cy="64" r="3" fill="#1e293b"/>
+        <path d="M73 75 Q80 80 87 75" stroke="#be123c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <text x="126" y="38" font-size="26" text-anchor="middle">${emoji}</text>
+      </svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    // ==========================================
+    // 6 Male Leads Data & Branching Story
+    // ==========================================
+    const INITIAL_BOYS = [
+      {
+        id: 'ceo',
+        name: '顧言深',
+        age: 29,
+        title: '跨國科技集團 CEO',
+        wealth: '★★★★★',
+        wealthLevel: 5,
+        tag: '高冷霸總・細節控',
+        personality: '佔有慾強、出手極度闊綽，刷黑卡從不眨眼，但邏輯嚴密，最討厭被欺騙。',
+        avatar: makeBoyAvatar('#0f172a', '#334155', '#090d16', '#1e293b', '👔'),
+        affection: 55,
+        suspicion: 15,
+        handle: '@yanshen_gu',
+        location: '信義區頂樓總裁辦公室',
+        favGift: '限量機械錶袖扣',
+        favFood: '頂級松露和牛便當'
+      },
+      {
+        id: 'puppy',
+        name: '林予樂',
+        age: 21,
+        title: '體育系籃球校隊王牌',
+        wealth: '★★☆☆☆',
+        wealthLevel: 2,
+        tag: '陽光年下・直球小奶狗',
+        personality: '秒回訊息、黏人愛撒嬌，雖然零用錢不多但會把打工錢全花在妳身上，重度社群成癮。',
+        avatar: makeBoyAvatar('#ea580c', '#f59e0b', '#78350f', '#dc2626', '🏀'),
+        affection: 65,
+        suspicion: 10,
+        handle: '@yule_bball21',
+        location: '大安區大學體育館',
+        favGift: '限量聯名籃球鞋',
+        favFood: '黑糖珍珠鮮奶雙倍加料'
+      },
+      {
+        id: 'doctor',
+        name: '沈確',
+        age: 31,
+        title: '醫學中心心臟外科主治醫師',
+        wealth: '★★★★☆',
+        wealthLevel: 4,
+        tag: '禁慾白袍・溫柔腹黑',
+        personality: '說話溫柔有禮，卻能一眼看穿妳的生理作息與裝病藉口，有感情潔癖。',
+        avatar: makeBoyAvatar('#0284c7', '#38bdf8', '#1e293b', '#f8fafc', '🩺'),
+        affection: 50,
+        suspicion: 15,
+        handle: '@dr_shen_heart',
+        location: '仁愛路醫學中心值班室',
+        favGift: '德國手工鋼筆禮盒',
+        favFood: '養生花旗參滴雞精'
+      },
+      {
+        id: 'rapper',
+        name: '陸星野',
+        age: 25,
+        title: '頂流饒舌歌手＆潮牌主理人',
+        wealth: '★★★★☆',
+        wealthLevel: 4,
+        tag: '痞帥傲嬌・夜店焦點',
+        personality: '嘴上說不在乎其實超愛吃醋，夜生活豐富、朋友遍布全台北，去哪約會都可能遇到他兄弟。',
+        avatar: makeBoyAvatar('#7e22ce', '#ec4899', '#cbd5e1', '#111827', '🎤'),
+        affection: 52,
+        suspicion: 20,
+        handle: '@star_lu_88',
+        location: '東區錄音室＆潮牌旗艦店',
+        favGift: '復古限量黑膠唱片',
+        favFood: '深夜韓式炸雞配精釀'
+      },
+      {
+        id: 'architect',
+        name: '溫以安',
+        age: 27,
+        title: '文青建築師＆咖啡廳主理人',
+        wealth: '★★★☆☆',
+        wealthLevel: 3,
+        tag: '溫潤知性・細節觀察家',
+        personality: '浪漫細膩、懂生活美學，喜歡研究照片光影與玻璃反光，千萬別在照片裡留下破綻。',
+        avatar: makeBoyAvatar('#065f46', '#10b981', '#451a03', '#d6d3d1', '☕'),
+        affection: 58,
+        suspicion: 10,
+        handle: '@ian_wen_arch',
+        location: '民生社區街角咖啡廳',
+        favGift: '日本職人手沖咖啡壺',
+        favFood: '法式手工草莓千層'
+      },
+      {
+        id: 'bartender',
+        name: '賀霆',
+        age: 33,
+        title: '隱密私廚＆Speakeasy酒吧老闆',
+        wealth: '★★★★☆',
+        wealthLevel: 4,
+        tag: '危險大叔・情場老手',
+        personality: '成熟性感、看盡紅塵男女，對妳的海后手段心知肚明卻樂在其中與妳高手過招。',
+        avatar: makeBoyAvatar('#881337', '#4c0519', '#18181b', '#27272a', '🍸'),
+        affection: 48,
+        suspicion: 25,
+        handle: '@he_ting_noir',
+        location: '安和路地下私密酒吧',
+        favGift: '高年份單一麥芽威士忌杯',
+        favFood: '深夜醒酒松露濃湯'
+      }
+    ];
+
+    // 5 Days of Fixed Branching Dialogues for Each Male Lead
+    const DIALOGUES = {
+      ceo: [
+        {
+          day: 1,
+          prompt: '「今晚八點，司機去接妳。信義區新開的米其林法餐，我包場了。」',
+          options: [
+            { text: '「太突然了吧～但我為了言深哥馬上排開所有事❤️」', aff: +12, sus: -5, money: +3000, reply: '「乖。剛轉了零用錢給妳買新禮服，晚上見。」（獲得 $3,000 治裝費！）' },
+            { text: '「今晚剛好跟閨蜜有約耶，能改明天嗎？」', aff: -5, sus: +12, money: 0, reply: '「閨蜜？最好真的只是閨蜜。明天同一時間，別讓我等。」' },
+            { text: '「好呀寶貝予樂～啊不是，言深哥我打錯字了！」', aff: -20, sus: +35, money: 0, reply: '「……予樂是誰？妳最好給我一個合理的解釋。」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「剛才我助理在東區潮牌店附近看到一個背影很像妳的女生，旁邊還有個染銀髮的男人？」',
+          options: [
+            { text: '「怎麼可能！我今天都在家整理房間，不信我拍給你看～」', aff: +8, sus: -10, money: 0, reply: '「嗯，看來是助理眼花了。晚上別累著。」' },
+            { text: '「喔～那是我表弟啦，陪他挑生日禮物而已！」', aff: +2, sus: +10, money: 0, reply: '「我記得妳上次說妳是獨生女沒有表弟？算了，下不為例。」' },
+            { text: '「你在派人跟蹤我嗎？這樣我很有壓力！」', aff: -12, sus: +25, money: 0, reply: '「心虛才會覺得是跟蹤。妳最近很不對勁。」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「看到妳凌晨兩點還醒著，怎麼還沒睡？在跟誰聊天？」',
+          options: [
+            { text: '「因為失眠都在想你呀，怕吵醒你才沒傳訊息～」', aff: +14, sus: -8, money: +5000, reply: '「嘴這麼甜。拿去買喜歡的包，別熬夜了。」（獲得 $5,000！）' },
+            { text: '「在追劇啦，剛好看完大結局準備睡了！」', aff: +4, sus: +5, money: 0, reply: '「早點休息，明天司機送早餐過去。」' },
+            { text: '「已讀不回（假裝睡著明天再回）」', aff: -8, sus: +20, money: 0, reply: '「明明在線上卻不回訊息？很好。」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「下週集團慈善晚宴，我要妳以我唯一女伴的身分出席，媒體都會在。」',
+          options: [
+            { text: '「那我們先低調一點，我怕被狗仔拍到會影響你的股價～」', aff: +15, sus: -5, money: 0, reply: '「還是妳懂事。那我安排私人VIP包廂通道，不讓媒體拍正臉。」' },
+            { text: '「好呀！我要全場最閃亮，讓大家都知道我是你的人！」', aff: +18, sus: +15, money: 0, reply: '「很好，我馬上讓人把照片發給公關部預熱。」（高調曝光風險上升！）' },
+            { text: '「那天我突然有點事可能去不了耶…」', aff: -15, sus: +25, money: 0, reply: '「什麼事比我的晚宴還重要？妳到底瞞著我什麼？」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「這陣子相處下來，我決定把副卡跟天母那棟豪宅鑰匙交給妳。妳心裡只有我一個，對吧？」',
+          options: [
+            { text: '「當然只有你，言深哥就是我唯一的歸宿❤️」', aff: +20, sus: -5, money: +8000, reply: '「這張無上限黑卡歸妳了，我的總裁夫人。」（獲得 $8,000！）' },
+            { text: '「我還想多享受一下戀愛的感覺，慢慢來好嗎？」', aff: +8, sus: 0, money: 0, reply: '「好，我給妳時間，但別讓我發現妳心裡有別人。」' },
+            { text: '「其實我覺得我們還是當普通朋友比較好…」', aff: -40, sus: 0, money: 0, reply: '「……好，顧某從不強求。祝妳好自為之。」' }
+          ]
+        }
+      ],
+      puppy: [
+        {
+          day: 1,
+          prompt: '「姊姊！！我今天系際盃拿了 28 分喔🏀 妳今晚有空來看我慶功宴嗎？好想見妳🥺」',
+          options: [
+            { text: '「我們予樂最棒了！姊姊晚點偷偷去接你下課～」', aff: +15, sus: -5, money: 0, reply: '「耶！！我就知道姊姊最疼我了！我先去洗香香等妳🐶❤️」' },
+            { text: '「今天姊姊要加班，乖，下次再補償你摸摸頭～」', aff: +5, sus: +5, money: 0, reply: '「好吧QQ 那姊姊加班別太累，我傳腹肌照給妳加油！」' },
+            { text: '「小孩子自己去玩啦，我很忙別一直傳訊息。」', aff: -18, sus: +15, money: 0, reply: '「我才不是小孩子…姊姊是不是有別的喜歡的人了😢」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「姊姊！我剛剛滑 IG 看到妳限動好像有一隻男生的手入鏡耶？那是誰的手啊😠」',
+          options: [
+            { text: '「傻瓜～那是餐廳服務生在幫我桌邊服務切牛排啦！」', aff: +10, sus: -12, money: 0, reply: '「原來是服務生喔！嚇死我了，我還以為姊姊跟別人約會XD」' },
+            { text: '「你管太多了吧？跟朋友吃飯也要報備嗎？」', aff: -10, sus: +28, money: 0, reply: '「那錶看起來超貴，根本不是普通朋友…我去問我球隊學長！」' },
+            { text: '「眼花了吧～那是姊姊穿男友風西裝外套的袖子啦！」', aff: +6, sus: +5, money: 0, reply: '「喔喔好像真的是耶！姊姊穿西裝也超好看😍」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「姊姊，我這個月打工薪水發了！雖然只有五千塊，但我買了妳上次說好看的唇膏想送妳🎁」',
+          options: [
+            { text: '「天啊太感動了😭 姊姊最喜歡你送的禮物，幫你買宵夜補身體！」', aff: +18, sus: -8, money: 0, reply: '「只要姊姊開心我就超幸福！！我要當一輩子保護姊姊的人！」' },
+            { text: '「這色號我已經有別人送過了耶，你有留發票可以退嗎？」', aff: -20, sus: +30, money: 0, reply: '「別人送過了……？是哪個男生送妳唇膏的？！」' },
+            { text: '「你自己留著吃飯啦，姊姊不缺這個～」', aff: +4, sus: 0, money: 0, reply: '「不行啦這是我的一點心意，妳一定要收下！」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「週末我們球隊去外縣市比賽，但我想翹掉聚餐連夜搭車回來找妳，現在快到妳家樓下了！」',
+          options: [
+            { text: '「千萬別上來！姊姊現在在敷臉超醜，我們約巷口超商見！」', aff: +12, sus: -10, money: 0, reply: '「哈哈姊姊怎麼樣都漂亮啦！好，我在巷口買熱可可等妳！」（成功化解撞期危機！）' },
+            { text: '「我不在家喔，去外婆家住了，你直接回宿舍吧！」', aff: -5, sus: +18, money: 0, reply: '「可是妳房間的燈明明亮著耶……姊姊？」' },
+            { text: '「好呀你直接上樓吧！（賭一把家裡沒別人）」', aff: +8, sus: +12, money: 0, reply: '「姊姊，玄關那雙大尺碼男鞋是誰的？？」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「姊姊，下個月全國大賽如果我拿到 MVP，妳可以正式當我女朋友、讓我發 IG 官宣嗎？」',
+          options: [
+            { text: '「好呀，只要我們予樂乖乖聽話，姊姊心裡永遠有你專屬的位置❤️」', aff: +20, sus: -5, money: 0, reply: '「真的嗎！！我一定會拿冠軍給妳看的！！」' },
+            { text: '「談戀愛是我們兩個人的事，低調不官宣更甜蜜呀～」', aff: +14, sus: -8, money: 0, reply: '「聽姊姊的！那我們偷偷甜死大家嘿嘿～」' },
+            { text: '「我一直把你當親弟弟看待而已耶…」', aff: -40, sus: 0, money: 0, reply: '「原來一直都是我自作多情……我知道了。」' }
+          ]
+        }
+      ],
+      doctor: [
+        {
+          day: 1,
+          prompt: '「剛下了一台六小時的心臟手術。看妳昨晚說頭暈，體溫量過了嗎？需不需要我順路帶藥過去？」',
+          options: [
+            { text: '「沈醫師聽到你的聲音頭就不暈了～你剛下刀快先去休息！」', aff: +14, sus: -5, money: 0, reply: '「貧嘴。看妳精神還不錯我就放心了，週末帶妳去吃清淡點的日料。」' },
+            { text: '「我發燒到 41 度快昏倒了，但你不用過來沒關係！」', aff: -10, sus: +25, money: 0, reply: '「成人燒到 41 度已經意識不清無法打字了。妳在跟我說謊？」' },
+            { text: '「已經吃過退燒藥睡一覺好多了，謝謝沈醫師關心💕」', aff: +10, sus: -5, money: 0, reply: '「好，多喝溫水，有不舒服隨時打我私人電話。」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「今天醫院急診送來一個喝醉的年輕饒舌歌手，嘴裡一直唸著妳的名字。妳認識陸星野？」',
+          options: [
+            { text: '「啊？我是他的歌迷啦，可能只是一起參加過朋友生日派對同名同姓！」', aff: +10, sus: -10, money: 0, reply: '「原來如此，同名確實常見。那種夜生活圈子太亂，妳少接觸。」' },
+            { text: '「他是我死纏爛打的追求者，我都很困擾不敢跟你說🥺」', aff: +12, sus: +5, money: 0, reply: '「難怪。以後這種人再騷擾妳，直接搬出我的名字。」' },
+            { text: '「對啊我們昨晚一起喝酒，他酒品真差哈哈！」', aff: -18, sus: +32, money: 0, reply: '「妳昨晚不是跟我說在家早睡嗎？看來我高估了妳的誠實。」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「我母親這週末想見見妳，她聽說我有個談得來的對象，特地訂了茶席。」',
+          options: [
+            { text: '「見長輩一定要好好準備！我先陪你挑份伯母喜歡的茶葉禮盒～」', aff: +16, sus: -8, money: +2000, reply: '「妳真的很細心。這是我的一點心意，讓妳去挑件得體的洋裝。」（獲得 $2,000！）' },
+            { text: '「這麼快見家長我好緊張喔，我們再穩定一點去拜訪更有禮貌吧？」', aff: +10, sus: -5, money: 0, reply: '「妳說得對，是我太心急了，尊重妳的節奏。」' },
+            { text: '「週末我要去夜店蹦迪沒空耶！」', aff: -25, sus: +25, money: 0, reply: '「……看來我們對未來的規劃差距很大。」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「妳上次留在副駕駛座的耳環，我幫妳收好了。不過妳脖子後面那個紅印，是過敏還是蚊子叮？」',
+          options: [
+            { text: '「是昨晚用電棒捲不小心燙到一點點啦，沈醫師幫我擦藥～」', aff: +15, sus: -10, money: 0, reply: '「笨手笨腳的。過來，我車上有燙傷藥膏，下次小心點。」' },
+            { text: '「應該是過敏吧，最近換季皮膚好敏感喔！」', aff: +5, sus: +8, money: 0, reply: '「皮下出血點分布比較像負壓造成的吻痕……希望只是我多慮。」' },
+            { text: '「你幹嘛一直盯著我看，很變態耶！」', aff: -15, sus: +28, money: 0, reply: '「我是醫生，也是在乎妳的人。妳反應這麼激烈，看來心裡有鬼。」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「我的休假批下來了，想帶妳去京都看楓葉。不管外面的世界多複雜，妳願意只留在我身邊嗎？」',
+          options: [
+            { text: '「願意！能被沈醫師照顧一輩子是最幸福的事❤️」', aff: +20, sus: -5, money: 0, reply: '「餘生請多指教，我的專屬家屬。」' },
+            { text: '「只要你不排滿值班，我隨時都願意陪你渡假～」', aff: +12, sus: -5, money: 0, reply: '「好，為了妳我把排班都調開。」' },
+            { text: '「我沒辦法只屬於一個人，抱歉了沈醫師。」', aff: -40, sus: 0, money: 0, reply: '「感謝妳最後的坦白。再見。」' }
+          ]
+        }
+      ],
+      rapper: [
+        {
+          day: 1,
+          prompt: '「Yo 昨晚我在信義區壓軸表演，台下妹子都在尖叫，結果妳竟然沒來？給本少爺一個理由🔥」',
+          options: [
+            { text: '「台下太多女生看你我會吃醋啦！我想要你私下單獨唱給我聽🎧」', aff: +16, sus: -5, money: 0, reply: '「靠，妳這女人真的很會撩…今晚來我錄音室，新歌第一個給妳聽！」' },
+            { text: '「昨晚太累睡著了嘛，下次一定去！」', aff: +4, sus: +8, money: 0, reply: '「切，敷衍我？下次沒看到妳人我就把妳寫進 Diss 歌裡。」' },
+            { text: '「我比較喜歡聽古典樂，饒舌太吵了。」', aff: -20, sus: +15, money: 0, reply: '「嫌我吵？行，那妳去找妳的乖乖牌吧！」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「我兄弟剛剛傳照片給我，說在米其林法餐看到妳跟一個穿西裝的老男人吃飯？妳跟誰啊？！」',
+          options: [
+            { text: '「那是我爸的世交長輩啦！被家裡逼去應酬無聊死了，心裡都在想你～」', aff: +14, sus: -12, money: +3000, reply: '「原來是長輩局喔！早說嘛害老子差點衝過去砸場。拿去買好吃的！」（獲得 $3,000！）' },
+            { text: '「你兄弟看錯人了吧，大眾臉那麼多！」', aff: +2, sus: +15, money: 0, reply: '「連手機殼都一模一樣最好是看錯…妳別讓我抓到把柄。」' },
+            { text: '「跟你有什麼關係？你又還不是我男朋友！」', aff: -15, sus: +30, money: 0, reply: '「好，妳夠狠！全台北夜店都有我眼線，我們走著瞧！」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「這雙全球限量 50 雙的聯名潮鞋我留了妳的尺寸，要不要穿情侶鞋跟我去拍 MV？」',
+          options: [
+            { text: '「穿情侶鞋私下約會就好，拍 MV 我怕你的女粉絲心碎攻擊我～」', aff: +15, sus: -10, money: 0, reply: '「也是，把妳藏起來只有我看得到更爽！鞋子請快遞送過去了。」' },
+            { text: '「好啊！我要當 MV 女主角全網曝光！」', aff: +18, sus: +20, money: 0, reply: '「霸氣！預告片今晚就發 IG！」（高調曝光，其他男主懷疑度容易上升！）' },
+            { text: '「可以把男鞋尺碼改成 28 號嗎？我想送我朋友。」', aff: -25, sus: +35, money: 0, reply: '「妳拿老子送妳的情侶鞋去送別的男人？！妳死定了！」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「剛剛在 Threads 看到有人發文暗指某個美女同時釣好幾個凱子，下面留言怎麼有人標記妳帳號？」',
+          options: [
+            { text: '「那是嫉妒我的黑粉造謠啦😭 星野你一定要相信我！」', aff: +12, sus: -8, money: 0, reply: '「媽的誰敢黑妳？我馬上開小號幫妳嗆爆他們！」' },
+            { text: '「身正不怕影子斜，不用理那些酸民～」', aff: +8, sus: +5, money: 0, reply: '「算妳心理素質強。不過要是讓我發現是真的，妳就完了。」' },
+            { text: '「糟糕被發現了，我先關帳號避風頭！」', aff: -20, sus: +35, money: 0, reply: '「妳關帳號幹嘛？！難道上面寫的全是真的？！」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「下週台北小巨蛋萬人演唱會，最後一首情歌是寫給妳的。妳到底選不選我？」',
+          options: [
+            { text: '「選你！你就是我最耀眼的大明星❤️」', aff: +20, sus: -5, money: 0, reply: '「全場一萬人都是我們的見證，老子愛死妳了！」' },
+            { text: '「我在 VIP 包廂默默為你應援，做你背後的女人～」', aff: +14, sus: -8, money: 0, reply: '「行，唱完慶功宴我直接翹掉去見妳！」' },
+            { text: '「我們還是當音樂上的好朋友就好。」', aff: -40, sus: 0, money: 0, reply: '「呵，虧我還幫妳寫歌。算我看走眼。」' }
+          ]
+        }
+      ],
+      architect: [
+        {
+          day: 1,
+          prompt: '「今天店裡剛烘了一批衣索比亞日曬豆，陽光剛好落在妳常坐的窗邊位置。要過來坐坐嗎？」',
+          options: [
+            { text: '「光聽你形容畫面就好美，我馬上過去聞咖啡香☕」', aff: +15, sus: -5, money: 0, reply: '「幫妳留了最後一塊手作草莓千層，慢慢走別急。」' },
+            { text: '「今天有點忙，以安幫我外帶一杯好不好？」', aff: +8, sus: 0, money: 0, reply: '「好，我在杯套上畫了小插畫，希望妳看到會笑。」' },
+            { text: '「我比較喜歡喝超商買一送一的美式耶。」', aff: -12, sus: +10, money: 0, reply: '「……也是，每個人的品味不同。」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「妳昨天發的那張自拍照構圖很有趣，不過妳墨鏡鏡片反射出來的對面座位，好像坐著一個穿白袍的男人？」',
+          options: [
+            { text: '「以安觀察力太強了吧！那是去醫美診所諮詢皮膚科醫師啦～」', aff: +12, sus: -12, money: 0, reply: '「原來是診所諮詢，難怪背景採光像醫療空間。妳天生麗質其實不用做醫美。」' },
+            { text: '「那是咖啡廳隔壁桌的路人角度剛好重疊啦！」', aff: +5, sus: +8, money: 0, reply: '「從焦距跟反射仰角來看距離不到一公尺……不過妳說是路人就是吧。」' },
+            { text: '「你連墨鏡反光都要放大看，太可怕了吧！」', aff: -15, sus: +28, money: 0, reply: '「建築師對光影本來就敏感。妳這麼緊張，看來那個人不單純。」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「最近在設計一棟海邊美術館，突然很想畫一張有妳在裡面的速寫。妳理想中的生活是什麼樣子？」',
+          options: [
+            { text: '「只要有陽光、貓咪，還有你沖的咖啡就夠了🌿」', aff: +16, sus: -8, money: 0, reply: '「這句話我記在設計圖扉頁上了。等完工第一個帶妳去看海。」' },
+            { text: '「當然是住大豪宅、每天刷卡買精品包跟跑車呀！」', aff: -12, sus: +15, money: 0, reply: '「看來妳嚮往的是顧氏集團那種名利場，而不是我的小咖啡館。」' },
+            { text: '「自由自在、不受任何拘束，每天都有新鮮感～」', aff: +6, sus: +8, money: 0, reply: '「自由確實迷人，但有時候太自由會讓人抓不住妳。」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「剛剛有位年輕男大生跑來我店裡買外帶，手機桌布竟然是妳的照片。這世界真小，對嗎？」',
+          options: [
+            { text: '「天啊！那是我親戚家弟弟拿我照片當擋桃花桌布啦，回去我罵他！」', aff: +12, sus: -10, money: 0, reply: '「拿姊姊照片擋桃花？雖然聽起來有點牽強，但我選擇相信妳。」' },
+            { text: '「可能是我在網路上照片被盜圖了吧，好可怕喔🥺」', aff: +8, sus: +5, money: 0, reply: '「但他看起來像是跟妳拍的合照……妳自己多留心。」' },
+            { text: '「對啦他也是我曖昧對象，你能接受嗎？」', aff: -30, sus: +40, money: 0, reply: '「我的設計圖容不下多餘的違建，感情也一樣。」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「咖啡館二樓的工作室整理好了，我留了一把鑰匙給妳。妳願意成為這裡的女主人嗎？」',
+          options: [
+            { text: '「我願意！以後每天都要喝你親手沖的咖啡❤️」', aff: +20, sus: -5, money: 0, reply: '「歡迎回家，我的靈感繆思。」' },
+            { text: '「鑰匙我先收著，偶爾去給你驚喜～」', aff: +14, sus: -5, money: 0, reply: '「好，二樓的窗燈永遠為妳留著。」' },
+            { text: '「抱歉，我還是喜歡熱鬧一點的生活。」', aff: -40, sus: 0, money: 0, reply: '「明白。祝妳在繁華裡找到想要的風景。」' }
+          ]
+        }
+      ],
+      bartender: [
+        {
+          day: 1,
+          prompt: '「小海后，今晚來我吧台坐坐？剛調了一杯取名叫『瞞天過海』的特調，很適合妳🍸」',
+          options: [
+            { text: '「賀老闆少虧我了～在你面前我哪敢耍花招，只對你真心❤️」', aff: +15, sus: -8, money: 0, reply: '「呵，嘴真甜。把妳那些追求者哄睡了就過來吧，留了私房菜給妳。」' },
+            { text: '「什麼海后！人家可是純情專一好女孩耶～」', aff: +8, sus: 0, money: 0, reply: '「純情女孩手機會同時裝三個外送跟兩個交友通知？我欣賞妳的演技。」' },
+            { text: '「你講話好討厭，我不去了！」', aff: -12, sus: +15, money: 0, reply: '「被戳中痛處就炸毛？看來高估妳的段位了。」' }
+          ]
+        },
+        {
+          day: 2,
+          prompt: '「昨晚顧言深跟沈確前後腳來我酒吧小酌，好巧不巧都在聊同一個女生。需不需要我幫妳打個掩護？」',
+          options: [
+            { text: '「天啊救命！賀哥你最罩了，幫我圓過去我請你喝酒😘」', aff: +16, sus: -15, money: 0, reply: '「放心，我把他們引開去不同包廂了。不過這個人情，妳打算怎麼還？」' },
+            { text: '「他們聊的一定不是我啦，你想太多了！」', aff: -5, sus: +18, money: 0, reply: '「在我面前還裝傻就沒意思了。不承認的話，下次我可不幫妳擋了。」' },
+            { text: '「讓他們打起來好了，誰贏我跟誰！」', aff: +4, sus: +25, money: 0, reply: '「夠瘋，我喜歡。但小心火燒到妳自己身上。」' }
+          ]
+        },
+        {
+          day: 3,
+          prompt: '「妳手機剛剛忘在吧台，螢幕跳出三條不同男人的晚安訊息。我幫妳按掉通知了，怎麼謝我？」',
+          options: [
+            { text: '「還是你最懂我～因為那些都是逢場作戲，只有你才是我深夜想見的人✨」', aff: +18, sus: -10, money: +4000, reply: '「明知道妳是騙子還是很受用。拿去，剛贏的籌碼分妳一半。」（獲得 $4,000！）' },
+            { text: '「你怎麼可以偷看我手機螢幕！」', aff: -14, sus: +22, money: 0, reply: '「不幫妳蓋住，剛剛經過的熟客就全看見了。真是好心沒好報。」' },
+            { text: '「哈哈時間管理很累耶，賀老闆要不要傳授幾招？」', aff: +12, sus: -5, money: 0, reply: '「第一招：永遠別在限時動態發有倒影的酒杯。來，我慢慢教妳。」' }
+          ]
+        },
+        {
+          day: 4,
+          prompt: '「有人出高價想向我買妳的行程情報，看來妳身邊有人開始起疑心了喔。」',
+          options: [
+            { text: '「我們可是最佳共犯，賀霆你絕對不會出賣我的對吧💋」', aff: +16, sus: -12, money: 0, reply: '「當然，我怎麼捨得讓別的男人把妳拆穿？我已經放假消息替妳洗白了。」' },
+            { text: '「是誰買的？！快告訴我我去處理他！」', aff: +4, sus: +10, money: 0, reply: '「慌什麼？自亂陣腳只會露餡，聽我的安排就好。」' },
+            { text: '「那我分你一半封口費，別說出去！」', aff: -15, sus: +25, money: 0, reply: '「拿錢打發我？妳把我看得太廉價了。」' }
+          ]
+        },
+        {
+          day: 5,
+          prompt: '「玩了這麼多局，連我都差點栽在妳手裡。要不要收山，跟我當一對真正的情場雙王？」',
+          options: [
+            { text: '「好呀，能收服賀老闆，這片海我就不逛了❤️」', aff: +20, sus: -5, money: 0, reply: '「成交。從今晚起，這間酒吧跟妳都是我的私有財產。」' },
+            { text: '「我們維持這種亦敵亦友的曖昧最迷人不是嗎～」', aff: +15, sus: -8, money: 0, reply: '「呵，果然是海后本色。行，這局棋我陪妳繼續下。」' },
+            { text: '「我怕你也是個渣男，我們還是算了吧。」', aff: -40, sus: 0, money: 0, reply: '「彼此彼此。祝妳別在哪天翻了船。」' }
+          ]
+        }
+      ]
+    };
+
+    // IG / Threads Preset Posts
+    const IG_STORY_PRESETS = [
+      {
+        id: 'steak',
+        title: '🍷 信義區高空法餐燭光牛排',
+        desc: '發這則限動能提升魅力，但若沒隱藏【林予樂/沈確/溫以安】可能會被質疑跟誰吃飯！',
+        charmBonus: 8,
+        safeBoys: ['ceo', 'bartender'],
+        angryBoys: ['puppy', 'doctor', 'architect'],
+        imgEmoji: '🥩🍷✨'
+      },
+      {
+        id: 'sick',
+        title: '🤒 在家發燒貼退熱貼討拍自拍',
+        desc: '發這則能讓男主心疼降懷疑，但若剛跟別人出去約會沒隱藏該男主會穿幫！',
+        charmBonus: 5,
+        safeBoys: ['puppy', 'rapper', 'architect'],
+        angryBoys: ['doctor'],
+        imgEmoji: '🛌🌡️🥺'
+      },
+      {
+        id: 'gym',
+        title: '🧘‍♀️ 瑜珈教室對鏡身材自拍',
+        desc: '全方位展示健康魅力，所有男主按讚好感微幅上升！',
+        charmBonus: 10,
+        safeBoys: ['ceo', 'puppy', 'doctor', 'rapper', 'architect', 'bartender'],
+        angryBoys: [],
+        imgEmoji: '🧘‍♀️✨💪'
+      },
+      {
+        id: 'gift',
+        title: '👜 收到神祕人送的頂奢限量包開箱',
+        desc: '炫耀行情！但沒送包的男主看到會大吃飛醋懷疑度飆升（記得勾選隱藏名單！）',
+        charmBonus: 12,
+        safeBoys: ['ceo'],
+        angryBoys: ['puppy', 'doctor', 'rapper', 'architect'],
+        imgEmoji: '🛍️💎🎀'
+      }
+    ];
+
+    const THREADS_PRESETS = [
+      {
+        id: 't1',
+        text: '「有時候覺得一個人看夜景也挺好的，只是風有點涼🌙」',
+        effectDesc: '經典討拍文：全體男主好感 +5，紛紛私訊關心妳',
+        affAll: 5,
+        susAll: 0,
+        replies: [
+          { boyId: 'puppy', comment: '姊姊在哪裡！！我帶外套過去找妳🏃‍♂️' },
+          { boyId: 'ceo', comment: '把定位發我，司機五分鐘到。' },
+          { boyId: 'bartender', comment: '呵，這餌撒得挺標準。' }
+        ]
+      },
+      {
+        id: 't2',
+        text: '「最討厭別人管東管西查勤了，給彼此一點空間很難嗎🙄」',
+        effectDesc: '抱怨文：陸星野、賀霆好感 +6，但顧言深、沈確懷疑度 +12',
+        affAll: 2,
+        susAll: 8,
+        replies: [
+          { boyId: 'rapper', comment: 'Respect！談戀愛就是要酷一點🔥' },
+          { boyId: 'ceo', comment: '妳這是在暗指誰？' },
+          { boyId: 'doctor', comment: '連基本的信任都嫌麻煩嗎？' }
+        ]
+      },
+      {
+        id: 't3',
+        text: '「今天認真工作了一整天，只想喝杯熱手沖配甜點療癒一下☕🍰」',
+        effectDesc: '歲月靜好文：全體懷疑度 -6，溫以安、沈確好感大增',
+        affAll: 6,
+        susAll: -6,
+        replies: [
+          { boyId: 'architect', comment: '隨時過來，幫妳留了衣索比亞手沖與草莓千層。' },
+          { boyId: 'doctor', comment: '別喝太多咖啡因，晚上會睡不著。' }
+        ]
+      }
+    ];
+
+    // Shop Items
+    const SHOP_ITEMS = [
+      { id: 'item_watch', name: '限量機械錶袖扣', price: 3200, category: '男主禮物', targetBoy: 'ceo', desc: '送給顧言深：好感 +18、懷疑 -12', icon: '⌚', aff: 18, sus: -12, charm: 0 },
+      { id: 'item_shoes', name: '限量聯名籃球鞋', price: 2200, category: '男主禮物', targetBoy: 'puppy', desc: '送給林予樂：好感 +20、懷疑 -12', icon: '👟', aff: 20, sus: -12, charm: 0 },
+      { id: 'item_pen', name: '德國手工鋼筆禮盒', price: 2600, category: '男主禮物', targetBoy: 'doctor', desc: '送給沈確：好感 +18、懷疑 -12', icon: '🖋️', aff: 18, sus: -12, charm: 0 },
+      { id: 'item_vinyl', name: '復古限量黑膠唱片', price: 2400, category: '男主禮物', targetBoy: 'rapper', desc: '送給陸星野：好感 +18、懷疑 -12', icon: '💿', aff: 18, sus: -12, charm: 0 },
+      { id: 'item_coffee', name: '日本職人手沖咖啡壺', price: 1800, category: '男主禮物', targetBoy: 'architect', desc: '送給溫以安：好感 +18、懷疑 -12', icon: '🫖', aff: 18, sus: -12, charm: 0 },
+      { id: 'item_whisky', name: '高年份威士忌水晶杯', price: 2800, category: '男主禮物', targetBoy: 'bartender', desc: '送給賀霆：好感 +18、懷疑 -12', icon: '🥃', aff: 18, sus: -12, charm: 0 },
+      { id: 'item_perfume', name: '衣物去味消除噴霧', price: 900, category: '防翻車神器', targetBoy: 'all', desc: '消除別人的香水與菸味！全體男主懷疑度 -10', icon: '🧴', aff: 0, sus: -10, charm: 3 },
+      { id: 'item_screen', name: '360度防窺手機保護貼', price: 1200, category: '防翻車神器', targetBoy: 'all', desc: '約會不怕旁邊偷看訊息！全體懷疑度 -12', icon: '📱', aff: 0, sus: -12, charm: 2 },
+      { id: 'item_dress', name: '法式斬男露背小禮服', price: 2500, category: '魅力穿搭', targetBoy: 'all', desc: '魅力值 +15，全體男主好感度 +6', icon: '👗', aff: 6, sus: 0, charm: 15 }
+    ];
+
+    // Food Delivery Items
+    const FOOD_ITEMS = [
+      { id: 'food_wagyu', name: '頂級松露和牛便當', price: 1200, icon: '🍱', favBoy: 'ceo', desc: '霸總最愛的高級餐點（對顧言深效果加倍）' },
+      { id: 'food_boba', name: '黑糖珍珠鮮奶雙倍料', price: 350, icon: '🧋', favBoy: 'puppy', desc: '練球必備甜飲（對林予樂效果加倍）' },
+      { id: 'food_soup', name: '養生花旗參滴雞精', price: 850, icon: '🍲', favBoy: 'doctor', desc: '值班補氣首選（對沈確效果加倍）' },
+      { id: 'food_chicken', name: '深夜韓式炸雞配精釀', price: 780, icon: '🍗', favBoy: 'rapper', desc: '寫歌宵夜神器（對陸星野效果加倍）' },
+      { id: 'food_cake', name: '法式手工草莓千層', price: 520, icon: '🍰', favBoy: 'architect', desc: '午後浪漫甜點（對溫以安效果加倍）' },
+      { id: 'food_hangover', name: '深夜醒酒松露濃湯', price: 680, icon: '🥣', favBoy: 'bartender', desc: '酒吧打烊暖胃湯（對賀霆效果加倍）' }
+    ];
+
+    // 9 Endings Definitions
+    const ENDINGS_LIST = [
+      {
+        id: 'end_exposed',
+        num: 1,
+        title: '【海后翻車・全網公審】',
+        subtitle: '被發現偷吃！六位男主聯合在 IG / Threads 爆料公審',
+        badgeColor: 'from-rose-600 to-red-800',
+        icon: '💥',
+        desc: '紙包不住火！妳的行程破綻與限動截圖被男主們建群組比對，一篇《踢爆台北時間管理女海后同時劈腿六人》在 Threads 破十萬轉發，徹底社死！'
+      },
+      {
+        id: 'end_alone',
+        num: 2,
+        title: '【孤獨終老・一場空】',
+        subtitle: '沒有跟任何人在一起，曖昧對象全部離開',
+        badgeColor: 'from-slate-600 to-slate-800',
+        icon: '🍂',
+        desc: '妳誰都想釣卻誰都沒抓牢，男主們陸續看清妳的敷衍而心冷離開。週末夜晚手機再也沒有訊息跳出，只剩妳一個人滑外送平台點單人餐。'
+      },
+      {
+        id: 'end_harem',
+        num: 3,
+        title: '【八爪海神・全員後宮】',
+        subtitle: '跟全部的人在一起！史詩級時間管理大師',
+        badgeColor: 'from-amber-400 via-pink-500 to-purple-600',
+        icon: '👑',
+        desc: '神乎其技的限動分組、精準的禮物投餵與滴水不漏的話術！六位男主都深信自己是妳的唯一，週一總裁、週二奶狗、週三醫師、週四饒舌、週五建築師、週末酒吧老闆，妳就是海后界傳奇！'
+      },
+      {
+        id: 'end_ceo',
+        num: 4,
+        title: '【豪門金絲雀・總裁獨寵】',
+        subtitle: '與顧言深修成正果，嫁入頂級豪門',
+        badgeColor: 'from-indigo-600 to-slate-900',
+        icon: '💎',
+        desc: '妳成功收服了高冷霸總顧言深，悄悄斬斷其他曖昧關係。他在信義區買下整層空中花園向妳求婚，從此黑卡隨便刷，成為人人稱羨的顧太太。'
+      },
+      {
+        id: 'end_puppy',
+        num: 5,
+        title: '【青春戀曲・姊弟戀修成正果】',
+        subtitle: '與陽光年下男大生林予樂甜蜜交往',
+        badgeColor: 'from-orange-500 to-amber-600',
+        icon: '🏀',
+        desc: '林予樂的滿腔赤誠融化了妳的海后心防。他拿下全國籃球聯賽 MVP 後衝上觀眾席擁抱妳，全場歡呼中妳決定只當他一個人的神仙姊姊。'
+      },
+      {
+        id: 'end_doctor',
+        num: 6,
+        title: '【杏林春暖・醫師娘的安穩幸福】',
+        subtitle: '與心臟外科醫師沈確攜手一生',
+        badgeColor: 'from-sky-500 to-blue-700',
+        icon: '🩺',
+        desc: '沈確看穿了妳所有的偽裝，卻依然溫柔地接住了妳。你們一起飛往京都看楓葉，過上知性優雅、被他捧在手心呵護的安穩生活。'
+      },
+      {
+        id: 'end_rapper',
+        num: 7,
+        title: '【緋聞女王・頂流公開認愛】',
+        subtitle: '與饒舌歌手陸星野成為最潮情侶',
+        badgeColor: 'from-purple-600 to-pink-600',
+        icon: '🎤',
+        desc: '陸星野在小巨蛋萬人演唱會上把聚光燈打向妳，當眾唱出寫給妳的專屬情歌。你們的戀情霸榜熱搜，成為潮流圈最閃耀的的神仙眷侶。'
+      },
+      {
+        id: 'end_architect',
+        num: 8,
+        title: '【歲月靜好・文青咖啡館女主人】',
+        subtitle: '與建築師溫以安共築浪漫慢活',
+        badgeColor: 'from-emerald-600 to-teal-800',
+        icon: '☕',
+        desc: '妳卸下所有心機，走進溫以安為妳設計的海邊玻璃屋與街角咖啡館。每天在手沖咖啡香與陽光中醒來，成為他唯一的靈感繆思。'
+      },
+      {
+        id: 'end_bartender',
+        num: 9,
+        title: '【危險共犯・夜色情場雙王】',
+        subtitle: '與酒吧老闆賀霆強強聯手',
+        badgeColor: 'from-rose-800 to-purple-950',
+        icon: '🍸',
+        desc: '兩個最懂套路的情場高手最終栽在了彼此手裡。每晚在地下酒吧的微醺夜色中舉杯相視一笑，你們是彼此最危險也最契合的靈魂共犯。'
+      }
+    ];
+
+    // ==========================================
+    // Application State
+    // ==========================================
+    let state = {
+      day: 1,
+      money: 12000,
+      charm: 65,
+      currentApp: 'home',
+      activeLineBoyId: 'ceo',
+      igSubTab: 'stories', // 'stories' | 'threads'
+      storyHideList: ['puppy', 'doctor'], // default hidden boys for stories
+      boys: [],
+      chatHistory: {}, // { boyId: [ { sender: 'boy'|'me'|'sys', text: '...' } ] }
+      answeredToday: {}, // { boyId: boolean }
+      postedStoryToday: false,
+      postedThreadToday: false,
+      feedPosts: [],
+      cart: [],
+      inventory: [],
+      selectedFoodId: 'food_wagyu',
+      selectedFoodTarget: 'ceo',
+      unlockedEndings: []
+    };
+
+    function loadUnlockedEndings() {
+      try {
+        const saved = localStorage.getItem('siren_sim_endings_v1');
+        if (saved) state.unlockedEndings = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    function saveUnlockedEndings() {
+      try {
+        localStorage.setItem('siren_sim_endings_v1', JSON.stringify(state.unlockedEndings));
+      } catch (e) {}
+    }
+
+    function initGame() {
+      loadUnlockedEndings();
+      state.day = 1;
+      state.money = 12000;
+      state.charm = 65;
+      state.currentApp = 'home';
+      state.activeLineBoyId = 'ceo';
+      state.igSubTab = 'stories';
+      state.storyHideList = ['puppy', 'doctor', 'architect'];
+      state.boys = JSON.parse(JSON.stringify(INITIAL_BOYS));
+      state.chatHistory = {};
+      state.answeredToday = {};
+      state.postedStoryToday = false;
+      state.postedThreadToday = false;
+      state.cart = [];
+      state.inventory = [];
+      state.selectedFoodId = 'food_wagyu';
+      state.selectedFoodTarget = 'ceo';
+
+      state.feedPosts = [
+        {
+          author: '林予樂 🏀',
+          handle: '@yule_bball21',
+          time: '15 分鐘前',
+          content: '今天練投 500 顆三分球！只要想到某人幫我加油就完全不累💪❤️',
+          likes: 342,
+          comments: ['隊友阿凱：又在放閃！嫂子到底是誰啦？', '顧言深：年輕人精力真多。']
+        },
+        {
+          author: '溫以安 ☕',
+          handle: '@ian_wen_arch',
+          time: '1 小時前',
+          content: '午後的陽光穿過玻璃窗，留了一席位子給特別的人。',
+          likes: 518,
+          comments: ['常客小芸：溫老闆今天手沖超香！']
+        }
+      ];
+
+      // Seed Day 1 initial messages
+      state.boys.forEach(b => {
+        state.chatHistory[b.id] = [
+          { sender: 'sys', text: `── 第 1 天 ──` },
+          { sender: 'boy', text: DIALOGUES[b.id][0].prompt }
+        ];
+        state.answeredToday[b.id] = false;
+      });
+
+      renderAll();
+      showPhoneToast('💬 LINE 收到 6 則新訊息', '六位男主同時傳訊息找妳了，快打開 LINE 小心回覆！');
+    }
+
+    // ==========================================
+    // Helper Functions
+    // ==========================================
+    function getBoy(id) {
+      return state.boys.find(b => b.id === id);
+    }
+
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    function showPhoneToast(title, body, isDanger = false) {
+      const container = document.getElementById('phoneToastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast-anim rounded-2xl p-3 shadow-xl border backdrop-blur-md flex items-start gap-2.5 ${
+        isDanger
+          ? 'bg-rose-950/95 border-rose-500 text-rose-100'
+          : 'bg-slate-900/95 border-pink-500/50 text-slate-100'
+      }`;
+      toast.innerHTML = `
+        <div class="text-lg leading-none mt-0.5">${isDanger ? '🚨' : '📲'}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-bold truncate">${title}</div>
+          <div class="text-[11px] text-slate-300 line-clamp-2 mt-0.5">${body}</div>
+        </div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 3600);
+    }
+
+    function checkAutoFlipOver() {
+      const exposedBoy = state.boys.find(b => b.suspicion >= 85);
+      if (exposedBoy) {
+        SoundFX.play('danger');
+        triggerEnding('end_exposed', `因為【${exposedBoy.name}】的懷疑度飆升至 ${exposedBoy.suspicion}%，他私下聯絡了其他男主比對截圖，妳的秘密徹底曝光大翻車！`);
+        return true;
+      }
+      return false;
+    }
+
+    // ==========================================
+    // Core Game Actions
+    // ==========================================
+    function answerLineOption(boyId, optIndex) {
+      const boy = getBoy(boyId);
+      if (!boy || state.answeredToday[boyId]) return;
+      const dayIdx = state.day - 1;
+      const dlg = DIALOGUES[boyId][dayIdx];
+      if (!dlg) return;
+      const opt = dlg.options[optIndex];
+      if (!opt) return;
+
+      SoundFX.play(opt.sus >= 20 ? 'danger' : 'pop');
+
+      state.chatHistory[boyId].push({ sender: 'me', text: opt.text });
+      state.chatHistory[boyId].push({ sender: 'boy', text: opt.reply });
+
+      boy.affection = clamp(boy.affection + opt.aff, 0, 100);
+      boy.suspicion = clamp(boy.suspicion + opt.sus, 0, 100);
+      if (opt.money) {
+        state.money += opt.money;
+      }
+
+      state.answeredToday[boyId] = true;
+
+      const deltaText = `好感 ${opt.aff >= 0 ? '+' + opt.aff : opt.aff} / 懷疑 ${opt.sus >= 0 ? '+' + opt.sus : opt.sus}`;
+      state.chatHistory[boyId].push({ sender: 'sys', text: `✨ 互動結果：${deltaText}` });
+
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function sendInventoryGiftToBoy(itemIdx, boyId) {
+      const item = state.inventory[itemIdx];
+      const boy = getBoy(boyId);
+      if (!item || !boy) return;
+
+      state.inventory.splice(itemIdx, 1);
+      SoundFX.play('coin');
+
+      if (item.targetBoy === boy.id) {
+        boy.affection = clamp(boy.affection + item.aff, 0, 100);
+        boy.suspicion = clamp(boy.suspicion + item.sus, 0, 100);
+        state.chatHistory[boy.id].push({
+          sender: 'me',
+          text: `🎁 送給了你一份禮物：【${item.name}】`
+        });
+        state.chatHistory[boy.id].push({
+          sender: 'boy',
+          text: `「這正是我最喜歡的 ${item.name}！妳怎麼這麼懂我❤️」（好感 +${item.aff}，懷疑 ${item.sus}）`
+        });
+        showPhoneToast(`🎁 送禮大成功！`, `${boy.name} 超喜歡【${item.name}】，好感大幅提升！`);
+      } else {
+        // Sent wrong style gift to the wrong guy!
+        boy.affection = clamp(boy.affection + 3, 0, 100);
+        boy.suspicion = clamp(boy.suspicion + 10, 0, 100);
+        state.chatHistory[boy.id].push({
+          sender: 'me',
+          text: `🎁 送給了你一份禮物：【${item.name}】`
+        });
+        state.chatHistory[boy.id].push({
+          sender: 'boy',
+          text: `「謝謝妳的心意……不過這好像不是我的風格，妳是不是買給別人的順便送我？」（好感 +3，懷疑 +10）`
+        });
+        showPhoneToast(`⚠️ 送錯禮物風格！`, `${boy.name} 覺得這不是他的喜好，懷疑度上升了！`, true);
+      }
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function toggleStoryHideBoy(boyId) {
+      const idx = state.storyHideList.indexOf(boyId);
+      if (idx >= 0) {
+        state.storyHideList.splice(idx, 1);
+      } else {
+        state.storyHideList.push(boyId);
+      }
+      SoundFX.play('pop');
+      renderPhoneScreen();
+    }
+
+    function publishIgStory(presetId) {
+      if (state.postedStoryToday) {
+        showPhoneToast('📸 今天已經發過限動囉', '一天發太多限時動態容易露餡，明天再發吧！');
+        return;
+      }
+      const preset = IG_STORY_PRESETS.find(p => p.id === presetId);
+      if (!preset) return;
+
+      state.postedStoryToday = true;
+      state.charm += preset.charmBonus;
+
+      let caughtNames = [];
+      let charmedNames = [];
+
+      state.boys.forEach(boy => {
+        const isHidden = state.storyHideList.includes(boy.id);
+        if (isHidden) return; // Boy cannot see this story!
+
+        if (preset.angryBoys.includes(boy.id)) {
+          boy.suspicion = clamp(boy.suspicion + 22, 0, 100);
+          boy.affection = clamp(boy.affection - 8, 0, 100);
+          caughtNames.push(boy.name);
+          state.chatHistory[boy.id].push({
+            sender: 'boy',
+            text: `「剛剛看到妳的 IG 限時動態【${preset.title}】……妳不是說今天沒空嗎？跟誰在一起？！」（忘記隱藏限動！懷疑度 +22）`
+          });
+        } else {
+          boy.affection = clamp(boy.affection + 8, 0, 100);
+          boy.suspicion = clamp(boy.suspicion - 4, 0, 100);
+          charmedNames.push(boy.name);
+          state.chatHistory[boy.id].push({
+            sender: 'boy',
+            text: `「剛看到妳的限動，今天狀態超美❤️」（好感 +8，懷疑 -4）`
+          });
+        }
+      });
+
+      if (caughtNames.length > 0) {
+        SoundFX.play('danger');
+        showPhoneToast(
+          '🚨 限時動態忘記隱藏！抓包警告！',
+          `【${caughtNames.join('、')}】看到了妳的限動並私訊質問妳！`,
+          true
+        );
+      } else {
+        SoundFX.play('fanfare');
+        showPhoneToast(
+          '✨ 限時動態完美控場！',
+          `成功避開危險對象，${charmedNames.length ? charmedNames.join('、') + ' 都對妳按了愛心！' : '安全賺取魅力值！'}`
+        );
+      }
+
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function publishThreadPost(threadId) {
+      if (state.postedThreadToday) {
+        showPhoneToast('🧵 今天已經發過串文囉', '保持神祕感才是海后最高境界！');
+        return;
+      }
+      const preset = THREADS_PRESETS.find(t => t.id === threadId);
+      if (!preset) return;
+
+      state.postedThreadToday = true;
+      SoundFX.play('pop');
+
+      state.boys.forEach(b => {
+        b.affection = clamp(b.affection + preset.affAll, 0, 100);
+        b.suspicion = clamp(b.suspicion + preset.susAll, 0, 100);
+      });
+
+      const commentsText = preset.replies.map(r => {
+        const b = getBoy(r.boyId);
+        return `${b ? b.name : ''}：${r.comment}`;
+      });
+
+      state.feedPosts.unshift({
+        author: '妳（海后本尊）👑',
+        handle: '@queen_of_sea',
+        time: '剛剛',
+        content: preset.text,
+        likes: 128 + state.charm * 3,
+        comments: commentsText
+      });
+
+      showPhoneToast('🧵 Threads 串文已發布', preset.effectDesc);
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function addToCart(itemId) {
+      const item = SHOP_ITEMS.find(i => i.id === itemId);
+      if (!item) return;
+      state.cart.push(item);
+      SoundFX.play('pop');
+      showPhoneToast('🛒 已加入購物車', `【${item.name}】已放入購物車，可自己結帳或找男主買單！`);
+      renderAll();
+    }
+
+    function removeFromCart(idx) {
+      state.cart.splice(idx, 1);
+      SoundFX.play('pop');
+      renderAll();
+    }
+
+    function checkoutCart(payerId) {
+      if (state.cart.length === 0) return;
+      const total = state.cart.reduce((sum, i) => sum + i.price, 0);
+
+      if (payerId === 'self') {
+        if (state.money < total) {
+          SoundFX.play('danger');
+          showPhoneToast('💸 小金庫餘額不足！', '錢不夠啦～試著請多金的男主幫妳清空購物車吧！', true);
+          return;
+        }
+        state.money -= total;
+        SoundFX.play('coin');
+        applyPurchasedItems();
+        showPhoneToast('🛍️ 自費結帳成功！', `花費 $${total.toLocaleString()}，商品已送達！`);
+      } else {
+        const boy = getBoy(payerId);
+        if (!boy) return;
+        // Check if cart contains a gift specifically for ANOTHER guy
+        const hasOtherBoyGift = state.cart.some(i => i.targetBoy !== 'all' && i.targetBoy !== boy.id);
+        if (hasOtherBoyGift) {
+          boy.suspicion = clamp(boy.suspicion + 28, 0, 100);
+          boy.affection = clamp(boy.affection - 12, 0, 100);
+          SoundFX.play('danger');
+          showPhoneToast(
+            `🚨 社死現場！${boy.name} 拒絕買單！`,
+            `購物車裡有送給別的男人的禮物，妳居然傳給 ${boy.name} 付錢？！他懷疑度暴增 +28！`,
+            true
+          );
+          renderAll();
+          checkAutoFlipOver();
+          return;
+        }
+
+        if (boy.wealthLevel >= 4 && boy.affection >= 45) {
+          boy.affection = clamp(boy.affection + 5, 0, 100);
+          SoundFX.play('coin');
+          applyPurchasedItems();
+          state.chatHistory[boy.id].push({
+            sender: 'boy',
+            text: `「剛幫妳把購物車 $${total.toLocaleString()} 清空了，喜歡最重要❤️」`
+          });
+          showPhoneToast(`💳 ${boy.name} 霸氣幫妳買單！`, `省下 $${total.toLocaleString()}，他還覺得妳撒嬌很可愛！`);
+        } else if (boy.id === 'puppy') {
+          boy.suspicion = clamp(boy.suspicion + 8, 0, 100);
+          SoundFX.play('danger');
+          showPhoneToast(`🥺 林予樂零用錢不夠…`, `「姊姊對不起，這單 $${total.toLocaleString()} 超出我打工薪水了QQ」`, true);
+          return;
+        } else {
+          boy.suspicion = clamp(boy.suspicion + 10, 0, 100);
+          SoundFX.play('danger');
+          showPhoneToast(`⚠️ ${boy.name} 委婉拒絕代付`, `目前好感度還不夠高，太常要他買單會讓他起疑喔！`, true);
+          renderAll();
+          return;
+        }
+      }
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function applyPurchasedItems() {
+      state.cart.forEach(item => {
+        if (item.targetBoy === 'all') {
+          state.charm += item.charm;
+          state.boys.forEach(b => {
+            b.affection = clamp(b.affection + item.aff, 0, 100);
+            b.suspicion = clamp(b.suspicion + item.sus, 0, 100);
+          });
+        } else {
+          state.inventory.push(item);
+        }
+      });
+      state.cart = [];
+    }
+
+    function orderFoodDelivery(noteType) {
+      const food = FOOD_ITEMS.find(f => f.id === state.selectedFoodId);
+      if (!food) return;
+      if (state.money < food.price) {
+        SoundFX.play('danger');
+        showPhoneToast('💸 餘額不足點外送', '錢包不夠付外送費囉！', true);
+        return;
+      }
+
+      state.money -= food.price;
+
+      if (state.selectedFoodTarget === 'self') {
+        SoundFX.play('coin');
+        state.charm += 5;
+        state.boys.forEach(b => {
+          b.suspicion = clamp(b.suspicion - 4, 0, 100);
+        });
+        showPhoneToast('🛵 外送已送達妳家！', `享用【${food.name}】並拍了居家認證照，全體懷疑度 -4、魅力 +5！`);
+        renderAll();
+        return;
+      }
+
+      const boy = getBoy(state.selectedFoodTarget);
+      if (!boy) return;
+
+      if (noteType === 'wrong_name') {
+        // Funny trap option: wrote wrong guy's nickname on delivery card
+        boy.suspicion = clamp(boy.suspicion + 30, 0, 100);
+        boy.affection = clamp(boy.affection - 15, 0, 100);
+        SoundFX.play('danger');
+        state.chatHistory[boy.id].push({
+          sender: 'boy',
+          text: `「妳幫我叫的【${food.name}】收到了，但外送單備註寫『給最愛的寶貝其他哥哥』是什麼意思？！」（外送備註翻車！懷疑 +30）`
+        });
+        showPhoneToast('🚨 外送備註寫錯名字大翻車！', `${boy.name} 看到外送小卡氣炸了，懷疑度 +30！`, true);
+      } else {
+        const isFav = food.favBoy === boy.id;
+        const affGain = isFav ? 16 : 9;
+        const susDrop = isFav ? -10 : -5;
+        boy.affection = clamp(boy.affection + affGain, 0, 100);
+        boy.suspicion = clamp(boy.suspicion + susDrop, 0, 100);
+        SoundFX.play('coin');
+        state.chatHistory[boy.id].push({
+          sender: 'me',
+          text: `🛵 幫你叫了外送：【${food.name}】送到 ${boy.location}`
+        });
+        state.chatHistory[boy.id].push({
+          sender: 'boy',
+          text: isFav
+            ? `「居然是我最愛吃的【${food.name}】！貼心小卡我也收到了，愛妳❤️」（好感 +${affGain}，懷疑 ${susDrop}）`
+            : `「收到妳點的外送了，謝謝妳這麼貼心～」（好感 +${affGain}，懷疑 ${susDrop}）`
+        });
+        showPhoneToast('🛵 暖心外送成功送達！', `${boy.name} 收到【${food.name}】，好感 +${affGain}！`);
+      }
+
+      renderAll();
+      checkAutoFlipOver();
+    }
+
+    function advanceNextDay() {
+      if (checkAutoFlipOver()) return;
+
+      if (state.day >= 5) {
+        evaluateAndShowEnding();
+        return;
+      }
+
+      // Check if any guy was completely ignored today
+      state.boys.forEach(b => {
+        if (!state.answeredToday[b.id]) {
+          b.affection = clamp(b.affection - 6, 0, 100);
+          b.suspicion = clamp(b.suspicion + 8, 0, 100);
+          state.chatHistory[b.id].push({
+            sender: 'sys',
+            text: `⚠️ 妳整天都沒回他訊息（好感 -6 / 懷疑 +8）`
+          });
+        }
+      });
+
+      if (checkAutoFlipOver()) return;
+
+      state.day += 1;
+      state.postedStoryToday = false;
+      state.postedThreadToday = false;
+
+      const dayIdx = state.day - 1;
+      state.boys.forEach(b => {
+        state.answeredToday[b.id] = false;
+        state.chatHistory[b.id].push({ sender: 'sys', text: `── 第 ${state.day} 天 ──` });
+        if (DIALOGUES[b.id][dayIdx]) {
+          state.chatHistory[b.id].push({ sender: 'boy', text: DIALOGUES[b.id][dayIdx].prompt });
+        }
+      });
+
+      SoundFX.play('pop');
+      showPhoneToast(`🌙 進入第 ${state.day} 天`, '六位男主傳來了新的 LINE 訊息，修羅場繼續升級！');
+      renderAll();
+    }
+
+    // ==========================================
+    // 9 Endings Evaluation Logic
+    // ==========================================
+    function evaluateAndShowEnding() {
+      // 1. Check if any guy has Suspicion >= 80 or average suspicion >= 65 -> Ending 1: Exposed!
+      const maxSusBoy = [...state.boys].sort((a, b) => b.suspicion - a.suspicion)[0];
+      const avgSus = state.boys.reduce((s, b) => s + b.suspicion, 0) / state.boys.length;
+
+      if (maxSusBoy.suspicion >= 80 || avgSus >= 60) {
+        triggerEnding(
+          'end_exposed',
+          `因為【${maxSusBoy.name}】懷疑度高達 ${maxSusBoy.suspicion}%，男主們私下對質發現妳同時劈腿六人，聯合在 IG 與 Threads 發長文公審妳！`
+        );
+        return;
+      }
+
+      // 2. Check Ending 3: All-6 Harem Master! (All 6 boys have Affection >= 72 and Suspicion < 55)
+      const highAffBoys = state.boys.filter(b => b.affection >= 72 && b.suspicion < 55);
+      if (highAffBoys.length === 6) {
+        triggerEnding(
+          'end_harem',
+          `太神啦！六位男主好感度全部突破 72% 且無人起疑！妳成功達成傳說中的「八爪海后・全員後宮」結局！`
+        );
+        return;
+      }
+
+      // 3. Check if no boy has Affection >= 65 -> Ending 2: Alone!
+      const topBoy = [...state.boys].sort((a, b) => b.affection - a.affection)[0];
+      if (topBoy.affection < 65) {
+        triggerEnding(
+          'end_alone',
+          `最高好感的【${topBoy.name}】也只有 ${topBoy.affection}%，男主們覺得妳若即若離而紛紛退場，最終沒有跟任何人在一起。`
+        );
+        return;
+      }
+
+      // 4. Solo Route Endings (Endings 4 to 9 based on highest affection male lead)
+      const soloMap = {
+        ceo: 'end_ceo',
+        puppy: 'end_puppy',
+        doctor: 'end_doctor',
+        rapper: 'end_rapper',
+        architect: 'end_architect',
+        bartender: 'end_bartender'
+      };
+      const endingId = soloMap[topBoy.id] || 'end_ceo';
+      triggerEnding(
+        endingId,
+        `在六位男主之中，妳與【${topBoy.name}】的好感度高達 ${topBoy.affection}%（懷疑度僅 ${topBoy.suspicion}%），正式收山與他修成正果！`
+      );
+    }
+
+    function triggerEnding(endingId, customReason) {
+      const ending = ENDINGS_LIST.find(e => e.id === endingId);
+      if (!ending) return;
+
+      if (!state.unlockedEndings.includes(endingId)) {
+        state.unlockedEndings.push(endingId);
+        saveUnlockedEndings();
+      }
+
+      SoundFX.play(endingId === 'end_exposed' ? 'danger' : 'fanfare');
+      renderEndingsGrid();
+
+      const modal = document.getElementById('endingModal');
+      const content = document.getElementById('endingModalContent');
+
+      let extraVisual = '';
+      if (endingId === 'end_exposed') {
+        extraVisual = `
+          <div class="my-4 p-3.5 rounded-2xl bg-rose-950/90 border border-rose-500/60 text-left text-xs space-y-1.5">
+            <div class="font-bold text-rose-300 flex items-center justify-between">
+              <span>🔥 Threads 熱門公審串文 #1</span>
+              <span>🔁 12.8萬轉發</span>
+            </div>
+            <p class="text-slate-200">「大家小心這位時間管理女海后！同時跟總裁、校隊王牌、心臟科醫師、饒舌歌手、建築師、酒吧老闆曖昧，我們六個人對完 LINE 截圖跟外送紀錄直接傻眼…」</p>
+          </div>
+        `;
+      } else if (endingId === 'end_harem') {
+        extraVisual = `
+          <div class="my-4 p-3.5 rounded-2xl bg-purple-950/80 border border-pink-400/50 text-left text-xs">
+            <div class="font-bold text-amber-300 mb-1.5">📅 海后巔峰排班表：</div>
+            <div class="grid grid-cols-2 gap-1 text-slate-200">
+              <div>• 週一：顧言深（法餐包場）</div>
+              <div>• 週二：林予樂（球場應援）</div>
+              <div>• 週三：沈確（京都溫泉）</div>
+              <div>• 週四：陸星野（VIP錄音室）</div>
+              <div>• 週五：溫以安（手沖咖啡）</div>
+              <div>• 週末：賀霆（深夜微醺）</div>
+            </div>
+          </div>
+        `;
+      }
+
+      content.innerHTML = `
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${ending.badgeColor} mx-auto flex items-center justify-center text-3xl shadow-xl mb-3">
+            ${ending.icon}
+          </div>
+          <span class="px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/40 text-pink-300 text-xs font-bold">
+            結局 ${ending.num} / 9 已解鎖
+          </span>
+          <h3 class="text-xl font-black text-white mt-2">${ending.title}</h3>
+          <p class="text-xs text-pink-300 font-medium mt-0.5">${ending.subtitle}</p>
+          <p class="text-xs text-slate-300 mt-3 leading-relaxed bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            ${customReason}<br><br>${ending.desc}
+          </p>
+          ${extraVisual}
+          <div class="flex flex-wrap gap-2 justify-center mt-5">
+            <button type="button" id="btnCloseEndingModal" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+              返回查看手機紀錄
+            </button>
+            <button type="button" id="btnRestartFromEnding" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white text-xs font-bold shadow-lg transition">
+              🔄 開啟下一輪挑戰其他結局
+            </button>
+          </div>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+
+      document.getElementById('btnCloseEndingModal').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+      document.getElementById('btnRestartFromEnding').addEventListener('click', () => {
+        modal.classList.add('hidden');
+        initGame();
+      });
+    }
+
+    // Quick simulation preset so user can also preview any of the 9 endings or play naturally
+    function simulateQuickEnding(endingId) {
+      if (endingId === 'end_harem') {
+        state.boys.forEach(b => { b.affection = 88; b.suspicion = 15; });
+        evaluateAndShowEnding();
+      } else if (endingId === 'end_alone') {
+        state.boys.forEach(b => { b.affection = 35; b.suspicion = 20; });
+        evaluateAndShowEnding();
+      } else if (endingId === 'end_exposed') {
+        state.boys[0].suspicion = 92;
+        evaluateAndShowEnding();
+      } else {
+        const mapBoy = {
+          end_ceo: 'ceo',
+          end_puppy: 'puppy',
+          end_doctor: 'doctor',
+          end_rapper: 'rapper',
+          end_architect: 'architect',
+          end_bartender: 'bartender'
+        }[endingId];
+        state.boys.forEach(b => {
+          b.affection = b.id === mapBoy ? 90 : 45;
+          b.suspicion = 15;
+        });
+        evaluateAndShowEnding();
+      }
+      renderAll();
+    }
+
+    // ==========================================
+    // Rendering Functions
+    // ==========================================
+    function renderHeaderAndDashboard() {
+      document.getElementById('headerDayText').textContent = `第 ${state.day} 天 / 共 5 天`;
+      document.getElementById('headerMoneyText').textContent = `$${state.money.toLocaleString()}`;
+      document.getElementById('headerCharmText').textContent = `${state.charm}`;
+
+      const clocks = ['20:15', '21:30', '22:45', '23:20', '00:10'];
+      document.getElementById('phoneClock').textContent = clocks[(state.day - 1) % clocks.length];
+
+      // Unanswered LINE count
+      const unreadCount = state.boys.filter(b => !state.answeredToday[b.id]).length;
+      const lineBadge = document.getElementById('dockLineBadge');
+      if (unreadCount > 0) {
+        lineBadge.textContent = unreadCount;
+        lineBadge.classList.remove('hidden');
+      } else {
+        lineBadge.classList.add('hidden');
+      }
+
+      // Cart count
+      const cartBadge = document.getElementById('dockCartBadge');
+      if (state.cart.length > 0) {
+        cartBadge.textContent = state.cart.length;
+        cartBadge.classList.remove('hidden');
+      } else {
+        cartBadge.classList.add('hidden');
+      }
+
+      // Max suspicion meter
+      const maxSus = Math.max(...state.boys.map(b => b.suspicion));
+      const maxSusText = document.getElementById('maxSuspicionText');
+      const maxSusBar = document.getElementById('maxSuspicionBar');
+      maxSusText.textContent = `最高懷疑度：${maxSus}%`;
+      maxSusText.className = `font-bold ${maxSus >= 65 ? 'text-rose-400' : maxSus >= 40 ? 'text-amber-300' : 'text-emerald-400'}`;
+      maxSusBar.style.width = `${clamp(maxSus, 0, 100)}%`;
+
+      // Desktop 6 Male Leads Cards
+      const grid = document.getElementById('desktopBoysGrid');
+      grid.innerHTML = state.boys.map(b => {
+        const unread = !state.answeredToday[b.id];
+        return `
+          <div data-open-boy="${b.id}" class="boy-quick-card cursor-pointer rounded-xl bg-slate-950/90 hover:bg-slate-800/80 border ${
+            unread ? 'border-pink-500/50' : 'border-slate-800'
+          } p-3 transition flex flex-col justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <img src="${b.avatar}" alt="${b.name}" class="w-12 h-12 rounded-xl object-cover border border-slate-700 flex-shrink-0" />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-sm text-white truncate">${b.name} <span class="text-[11px] text-slate-400 font-normal">${b.age}歲</span></span>
+                  ${unread ? '<span class="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold">待回覆</span>' : '<span class="text-[10px] text-emerald-400">已安撫</span>'}
+                </div>
+                <div class="text-[11px] text-pink-300 truncate">${b.title}</div>
+                <div class="text-[10px] text-amber-300">財力 ${b.wealth}</div>
+              </div>
+            </div>
+            <div class="space-y-1 text-[11px]">
+              <div>
+                <div class="flex justify-between text-slate-300 mb-0.5">
+                  <span>❤️ 好感度</span>
+                  <span class="font-bold text-pink-400">${b.affection}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-pink-500 to-rose-400" style="width:${b.affection}%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-slate-300 mb-0.5">
+                  <span>👀 懷疑度</span>
+                  <span class="font-bold ${b.suspicion >= 60 ? 'text-rose-400' : 'text-amber-300'}">${b.suspicion}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full ${b.suspicion >= 60 ? 'bg-rose-500' : 'bg-amber-400'}" style="width:${b.suspicion}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('.boy-quick-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const boyId = el.getAttribute('data-open-boy');
+          state.activeLineBoyId = boyId;
+          state.currentApp = 'line';
+          SoundFX.play('pop');
+          renderAll();
+        });
+      });
+
+      renderEndingsGrid();
+    }
+
+    function renderEndingsGrid() {
+      document.getElementById('unlockedCountText').textContent = state.unlockedEndings.length;
+      const grid = document.getElementById('endingsGrid');
+      grid.innerHTML = ENDINGS_LIST.map(e => {
+        const unlocked = state.unlockedEndings.includes(e.id);
+        return `
+          <div class="rounded-xl p-2.5 border ${
+            unlocked
+              ? 'bg-gradient-to-br from-slate-900 to-pink-950/40 border-pink-500/50'
+              : 'bg-slate-950/60 border-slate-800/80 opacity-85'
+          } flex flex-col justify-between gap-2">
+            <div class="flex items-start gap-2">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br ${e.badgeColor} flex items-center justify-center text-base flex-shrink-0">
+                ${unlocked ? e.icon : '🔒'}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-bold text-white truncate">${e.title}</div>
+                <div class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${e.subtitle}</div>
+              </div>
+            </div>
+            <button type="button" data-sim-ending="${e.id}" class="sim-ending-btn w-full py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-pink-300 font-medium transition">
+              ${unlocked ? '✨ 再次重溫結局' : '⚡ 體驗此結局路線'}
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('.sim-ending-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const eid = btn.getAttribute('data-sim-ending');
+          simulateQuickEnding(eid);
+        });
+      });
+    }
+
+    // ==========================================
+    // Phone Screen App Renderers
+    // ==========================================
+    function renderPhoneScreen() {
+      const screen = document.getElementById('phoneScreen');
+      // Highlight active dock icon
+      document.querySelectorAll('.nav-app-btn').forEach(btn => {
+        const app = btn.getAttribute('data-app');
+        if (app === state.currentApp) {
+          btn.classList.add('bg-slate-800', 'ring-1', 'ring-pink-500/50');
+        } else {
+          btn.classList.remove('bg-slate-800', 'ring-1', 'ring-pink-500/50');
+        }
+      });
+
+      if (state.currentApp === 'home') {
+        renderHomeApp(screen);
+      } else if (state.currentApp === 'line') {
+        renderLineApp(screen);
+      } else if (state.currentApp === 'ig') {
+        renderIgThreadsApp(screen);
+      } else if (state.currentApp === 'shop') {
+        renderShopApp(screen);
+      } else if (state.currentApp === 'food') {
+        renderFoodApp(screen);
+      } else if (state.currentApp === 'radar') {
+        renderRadarApp(screen);
+      }
+    }
+
+    function renderHomeApp(screen) {
+      const unreadCount = state.boys.filter(b => !state.answeredToday[b.id]).length;
+      screen.innerHTML = `
+        <div class="p-4 min-h-full flex flex-col justify-between bg-gradient-to-b from-fuchsia-950/60 via-slate-900 to-slate-950">
+          <!-- Profile Widget -->
+          <div>
+            <div class="rounded-3xl bg-white/10 backdrop-blur-md border border-white/15 p-4 mb-5 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-pink-500/30 text-pink-200 font-bold">
+                    海后手機桌面・Day ${state.day}
+                  </span>
+                  <h3 class="text-base font-black text-white mt-1.5">今晚想翻誰的牌子？</h3>
+                  <p class="text-xs text-slate-300 mt-0.5">還有 <span class="text-rose-400 font-bold">${unreadCount}</span> 位男主正在等妳回 LINE</p>
+                </div>
+                <div class="text-3xl">💋</div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10 text-center text-xs">
+                <div>
+                  <div class="text-slate-400 text-[10px]">小金庫</div>
+                  <div class="font-bold text-amber-300">$${state.money.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div class="text-slate-400 text-[10px]">魅力值</div>
+                  <div class="font-bold text-pink-300">${state.charm}</div>
+                </div>
+                <div>
+                  <div class="text-slate-400 text-[10px]">背包禮物</div>
+                  <div class="font-bold text-emerald-300">${state.inventory.length} 件</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- App Grid -->
+            <div class="grid grid-cols-3 gap-4 px-2">
+              <button type="button" data-launch="line" class="home-app-icon flex flex-col items-center group relative">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  💬
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">LINE 訊息</span>
+                ${unreadCount > 0 ? `<span class="absolute -top-1 right-3 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">${unreadCount}</span>` : ''}
+              </button>
+
+              <button type="button" data-launch="ig" class="home-app-icon flex flex-col items-center group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  📸
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">IG / Threads</span>
+              </button>
+
+              <button type="button" data-launch="shop" class="home-app-icon flex flex-col items-center group relative">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  🛍️
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">女神網購</span>
+              </button>
+
+              <button type="button" data-launch="food" class="home-app-icon flex flex-col items-center group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  🍔
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">美食外送</span>
+              </button>
+
+              <button type="button" data-launch="radar" class="home-app-icon flex flex-col items-center group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  📒
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">男主備忘錄</span>
+              </button>
+
+              <button type="button" id="homeEndBtn" class="flex flex-col items-center group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-700 flex items-center justify-center text-3xl shadow-lg group-hover:scale-105 transition">
+                  🏆
+                </div>
+                <span class="text-xs font-semibold mt-1.5 text-slate-200">結局結算</span>
+              </button>
+            </div>
+
+            <!-- Live Feed Preview Widget -->
+            <div class="mt-6 rounded-2xl bg-slate-900/90 border border-slate-800 p-3.5">
+              <div class="text-xs font-bold text-pink-300 mb-2 flex items-center justify-between">
+                <span>🔔 最新男主動態提醒</span>
+                <span class="text-[10px] text-slate-400">即時更新</span>
+              </div>
+              <div class="space-y-2 text-xs">
+                ${state.boys.slice(0, 3).map(b => `
+                  <div class="flex items-center justify-between bg-slate-950/70 px-2.5 py-1.5 rounded-xl">
+                    <div class="flex items-center gap-2 truncate">
+                      <img src="${b.avatar}" alt="${b.name}" class="w-6 h-6 rounded-full" />
+                      <span class="font-medium text-slate-200">${b.name}</span>
+                      <span class="text-[10px] text-slate-400 truncate">${b.location}</span>
+                    </div>
+                    <span class="text-[10px] ${state.answeredToday[b.id] ? 'text-emerald-400' : 'text-rose-400 font-bold'}">
+                      ${state.answeredToday[b.id] ? '已讀已回' : '等妳回覆'}
+                    </span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center text-[11px] text-slate-400 mt-4">
+            點擊下方導覽列或桌面圖示切換 App
+          </div>
+        </div>
+      `;
+
+      screen.querySelectorAll('.home-app-icon').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentApp = btn.getAttribute('data-launch');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+      const homeEndBtn = document.getElementById('homeEndBtn');
+      if (homeEndBtn) {
+        homeEndBtn.addEventListener('click', () => {
+          evaluateAndShowEnding();
+        });
+      }
+    }
+
+    function renderLineApp(screen) {
+      const activeBoy = getBoy(state.activeLineBoyId) || state.boys[0];
+      const history = state.chatHistory[activeBoy.id] || [];
+      const dayIdx = state.day - 1;
+      const currentDlg = DIALOGUES[activeBoy.id][dayIdx];
+      const alreadyAnswered = state.answeredToday[activeBoy.id];
+
+      screen.innerHTML = `
+        <div class="flex flex-col h-full bg-slate-900">
+          <!-- LINE Top Header -->
+          <div class="bg-[#06C755] text-slate-950 px-3.5 py-2.5 flex items-center justify-between shadow">
+            <div class="flex items-center gap-2">
+              <span class="text-base font-black">LINE</span>
+              <span class="text-xs font-semibold bg-black/15 px-2 py-0.5 rounded-full">海后專屬置頂 (${state.boys.length})</span>
+            </div>
+            <span class="text-xs font-bold">第 ${state.day} 天</span>
+          </div>
+
+          <!-- Horizontal Boy Selector Tabs -->
+          <div class="bg-slate-950 px-2 py-2 flex gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-800">
+            ${state.boys.map(b => {
+              const isAct = b.id === activeBoy.id;
+              const isUnread = !state.answeredToday[b.id];
+              return `
+                <button type="button" data-select-boy="${b.id}" class="line-boy-tab flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition relative ${
+                  isAct ? 'bg-[#06C755] text-slate-950' : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700'
+                }">
+                  <img src="${b.avatar}" alt="${b.name}" class="w-5 h-5 rounded-full" />
+                  <span>${b.name}</span>
+                  ${isUnread ? '<span class="w-2 h-2 rounded-full bg-rose-500"></span>' : ''}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Active Boy Subheader -->
+          <div class="bg-slate-800/90 px-3 py-1.5 flex items-center justify-between text-[11px] border-b border-slate-700">
+            <div class="truncate">
+              <span class="font-bold text-white">${activeBoy.name}</span>
+              <span class="text-slate-400 ml-1">(${activeBoy.title})</span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-pink-300 font-bold">❤️ ${activeBoy.affection}%</span>
+              <span class="text-amber-300 font-bold">👀 ${activeBoy.suspicion}%</span>
+            </div>
+          </div>
+
+          <!-- Chat Messages Scroll Container -->
+          <div id="lineChatScroll" class="flex-1 overflow-y-auto p-3 space-y-2.5 bg-[#1a2234]">
+            ${history.map(msg => {
+              if (msg.sender === 'sys') {
+                return `<div class="text-center"><span class="px-2.5 py-0.5 rounded-full bg-slate-800/90 text-[10px] text-slate-400">${msg.text}</span></div>`;
+              } else if (msg.sender === 'boy') {
+                return `
+                  <div class="flex items-start gap-2">
+                    <img src="${activeBoy.avatar}" alt="${activeBoy.name}" class="w-8 h-8 rounded-full border border-slate-600 flex-shrink-0 mt-0.5" />
+                    <div class="bg-slate-800 text-slate-100 text-xs p-2.5 rounded-2xl rounded-tl-sm max-w-[80%] shadow leading-relaxed">
+                      ${msg.text}
+                    </div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div class="flex justify-end items-end gap-1">
+                    <span class="text-[9px] text-emerald-400">已讀</span>
+                    <div class="bg-[#06C755] text-slate-950 font-medium text-xs p-2.5 rounded-2xl rounded-tr-sm max-w-[80%] shadow leading-relaxed">
+                      ${msg.text}
+                    </div>
+                  </div>
+                `;
+              }
+            }).join('')}
+          </div>
+
+          <!-- Gift Quick Send Bar (if inventory has items) -->
+          ${state.inventory.length > 0 ? `
+            <div class="bg-slate-900 px-3 py-1.5 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span class="text-[10px] text-amber-300 whitespace-nowrap">🎁 送禮：</span>
+              ${state.inventory.map((item, idx) => `
+                <button type="button" data-gift-idx="${idx}" class="send-gift-btn px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-[10px] whitespace-nowrap">
+                  ${item.icon} 送出【${item.name}】
+                </button>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- Fixed Branching Choices Panel -->
+          <div class="bg-slate-950 p-3 border-t border-slate-800">
+            ${!alreadyAnswered && currentDlg ? `
+              <div class="text-[11px] text-pink-300 font-bold mb-1.5">👇 選擇回覆話術（固定劇情選項）：</div>
+              <div class="space-y-1.5">
+                ${currentDlg.options.map((opt, idx) => `
+                  <button type="button" data-opt-idx="${idx}" class="line-choice-btn w-full text-left p-2 rounded-xl bg-slate-800 hover:bg-pink-950/60 border border-slate-700 hover:border-pink-500/50 text-xs text-slate-100 transition leading-snug">
+                    ${idx + 1}. ${opt.text}
+                  </button>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="flex items-center justify-between py-1">
+                <span class="text-xs text-emerald-400 font-medium">✅ 今日已回覆 ${activeBoy.name}，可切換其他男主或推進下一天</span>
+                <button type="button" id="btnSwitchNextUnread" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-pink-300 font-bold">
+                  下一位未讀 ➔
+                </button>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+
+      const chatScroll = document.getElementById('lineChatScroll');
+      if (chatScroll) chatScroll.scrollTop = chatScroll.scrollHeight;
+
+      screen.querySelectorAll('.line-boy-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeLineBoyId = btn.getAttribute('data-select-boy');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+
+      screen.querySelectorAll('.line-choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-opt-idx'), 10);
+          answerLineOption(activeBoy.id, idx);
+        });
+      });
+
+      screen.querySelectorAll('.send-gift-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-gift-idx'), 10);
+          sendInventoryGiftToBoy(idx, activeBoy.id);
+        });
+      });
+
+      const nextUnreadBtn = document.getElementById('btnSwitchNextUnread');
+      if (nextUnreadBtn) {
+        nextUnreadBtn.addEventListener('click', () => {
+          const nextBoy = state.boys.find(b => !state.answeredToday[b.id]);
+          if (nextBoy) {
+            state.activeLineBoyId = nextBoy.id;
+            SoundFX.play('pop');
+            renderPhoneScreen();
+          } else {
+            showPhoneToast('🎉 今日 6 位男主全部安撫完畢！', '可以去發 IG 限動、叫外送，或點擊右上角進入下一天！');
+          }
+        });
+      }
+    }
+
+    function renderIgThreadsApp(screen) {
+      screen.innerHTML = `
+        <div class="flex flex-col h-full bg-slate-950">
+          <!-- IG / Threads Switch Header -->
+          <div class="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex gap-2">
+              <button type="button" data-ig-tab="stories" class="ig-tab-btn px-3 py-1 rounded-xl text-xs font-bold transition ${
+                state.igSubTab === 'stories' ? 'bg-gradient-to-r from-pink-500 to-amber-500 text-white' : 'bg-slate-800 text-slate-400'
+              }">
+                📸 IG 限時動態
+              </button>
+              <button type="button" data-ig-tab="threads" class="ig-tab-btn px-3 py-1 rounded-xl text-xs font-bold transition ${
+                state.igSubTab === 'threads' ? 'bg-white text-slate-950' : 'bg-slate-800 text-slate-400'
+              }">
+                🧵 Threads 串文
+              </button>
+            </div>
+            <span class="text-[11px] text-pink-300 font-bold">魅力 ${state.charm}</span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3.5 space-y-4">
+            ${state.igSubTab === 'stories' ? `
+              <!-- Close Friends / Hide Story Control -->
+              <div class="rounded-2xl bg-slate-900 border border-pink-500/40 p-3">
+                <div class="text-xs font-bold text-pink-300 flex items-center justify-between mb-1">
+                  <span>🙈 限時動態「對誰隱藏」名單設定</span>
+                  <span class="text-[10px] text-slate-400">已隱藏 ${state.storyHideList.length} 人</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mb-2.5">
+                  發限動前先勾選要屏蔽的男主！被隱藏的男主看不到妳的限動，不會吃醋抓包。
+                </p>
+                <div class="grid grid-cols-3 gap-1.5">
+                  ${state.boys.map(b => {
+                    const hidden = state.storyHideList.includes(b.id);
+                    return `
+                      <button type="button" data-hide-boy="${b.id}" class="hide-boy-btn p-1.5 rounded-xl border text-[11px] flex items-center gap-1.5 transition ${
+                        hidden
+                          ? 'bg-rose-950/80 border-rose-500 text-rose-200 font-bold'
+                          : 'bg-slate-800/60 border-slate-700 text-slate-300'
+                      }">
+                        <span>${hidden ? '🚫' : '👁️'}</span>
+                        <span class="truncate">${b.name}</span>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Story Templates -->
+              <div class="space-y-2.5">
+                <div class="text-xs font-bold text-white">✨ 選擇今日要發的 IG 限時動態：</div>
+                ${IG_STORY_PRESETS.map(st => `
+                  <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold text-amber-300">${st.title}</span>
+                      <span class="text-sm">${st.imgEmoji}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-relaxed">${st.desc}</p>
+                    <button type="button" data-post-story="${st.id}" class="post-story-btn w-full py-1.5 rounded-xl ${
+                      state.postedStoryToday
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-bold'
+                    } text-xs transition">
+                      ${state.postedStoryToday ? '今日已發過限時動態' : '📤 發布這則限時動態'}
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <!-- Threads Post Composer -->
+              <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2.5">
+                <div class="text-xs font-bold text-white">🧵 發一篇深夜曖昧 Threads 串文：</div>
+                ${THREADS_PRESETS.map(t => `
+                  <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="text-xs text-slate-100 font-medium">${t.text}</div>
+                    <div class="text-[10px] text-pink-300">${t.effectDesc}</div>
+                    <button type="button" data-post-thread="${t.id}" class="post-thread-btn w-full py-1.5 rounded-lg ${
+                      state.postedThreadToday
+                        ? 'bg-slate-800 text-slate-500'
+                        : 'bg-white text-slate-950 hover:bg-slate-200 font-bold'
+                    } text-xs transition">
+                      ${state.postedThreadToday ? '今日已發過串文' : '發布串文'}
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Threads Live Timeline -->
+              <div class="space-y-2.5">
+                <div class="text-xs font-bold text-slate-300">🔥 社群即時動態牆</div>
+                ${state.feedPosts.map(fp => `
+                  <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="font-bold text-white">${fp.author} <span class="text-slate-400 font-normal">${fp.handle}</span></span>
+                      <span class="text-[10px] text-slate-400">${fp.time}</span>
+                    </div>
+                    <p class="text-xs text-slate-200 leading-relaxed">${fp.content}</p>
+                    <div class="text-[11px] text-pink-400">❤️ ${fp.likes} 個讚</div>
+                    <div class="bg-slate-950/80 rounded-xl p-2 space-y-1 text-[11px] text-slate-300">
+                      ${fp.comments.map(c => `<div>💬 ${c}</div>`).join('')}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+
+      screen.querySelectorAll('.ig-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.igSubTab = btn.getAttribute('data-ig-tab');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+
+      screen.querySelectorAll('.hide-boy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          toggleStoryHideBoy(btn.getAttribute('data-hide-boy'));
+        });
+      });
+
+      screen.querySelectorAll('.post-story-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          publishIgStory(btn.getAttribute('data-post-story'));
+        });
+      });
+
+      screen.querySelectorAll('.post-thread-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          publishThreadPost(btn.getAttribute('data-post-thread'));
+        });
+      });
+    }
+
+    function renderShopApp(screen) {
+      const cartTotal = state.cart.reduce((s, i) => s + i.price, 0);
+
+      screen.innerHTML = `
+        <div class="flex flex-col h-full bg-slate-950">
+          <!-- Shop Header -->
+          <div class="bg-gradient-to-r from-orange-600 to-rose-600 px-4 py-2.5 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-black text-white">🛍️ 女神購物車</h3>
+              <p class="text-[10px] text-orange-100">買禮物哄男主・買防翻車神器降懷疑</p>
+            </div>
+            <div class="text-xs font-bold bg-black/25 px-2.5 py-1 rounded-xl text-amber-200">
+              💰 $${state.money.toLocaleString()}
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3 space-y-3">
+            <!-- Cart Checkout Box -->
+            <div class="rounded-2xl bg-slate-900 border border-orange-500/40 p-3">
+              <div class="flex items-center justify-between text-xs font-bold mb-2">
+                <span class="text-orange-300">🛒 目前購物車 (${state.cart.length} 件)</span>
+                <span class="text-amber-300">總計 $${cartTotal.toLocaleString()}</span>
+              </div>
+              ${state.cart.length === 0 ? `
+                <p class="text-[11px] text-slate-400">購物車還是空的，從下方挑選禮物或神器加入吧！</p>
+              ` : `
+                <div class="space-y-1.5 mb-2.5">
+                  ${state.cart.map((item, idx) => `
+                    <div class="flex items-center justify-between bg-slate-950 px-2.5 py-1.5 rounded-xl text-xs">
+                      <span>${item.icon} ${item.name} ($${item.price})</span>
+                      <button type="button" data-rm-cart="${idx}" class="rm-cart-btn text-rose-400 text-[11px] hover:underline">移除</button>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="space-y-1.5">
+                  <button type="button" id="btnPaySelf" class="w-full py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+                    💳 自己刷卡結帳 ($${cartTotal.toLocaleString()})
+                  </button>
+                  <div class="text-[10px] text-pink-300 font-semibold pt-1">👇 或傳連結撒嬌請男主幫妳買單（小心別拿別人的禮物給他付錢！）：</div>
+                  <div class="grid grid-cols-3 gap-1">
+                    ${state.boys.map(b => `
+                      <button type="button" data-pay-boy="${b.id}" class="pay-boy-btn py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-pink-900/50 border border-slate-700 text-[10px] text-slate-200 truncate">
+                        請 ${b.name} 付
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              `}
+            </div>
+
+            <!-- Product List -->
+            <div class="space-y-2">
+              <div class="text-xs font-bold text-white">🔥 熱門精選商品</div>
+              ${SHOP_ITEMS.map(item => `
+                <div class="rounded-2xl bg-slate-900 border border-slate-800 p-2.5 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-xl flex-shrink-0">
+                      ${item.icon}
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-white truncate">${item.name}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-pink-300">${item.category}</span>
+                      </div>
+                      <div class="text-[10px] text-slate-400 mt-0.5">${item.desc}</div>
+                      <div class="text-xs font-bold text-amber-300 mt-0.5">$${item.price.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <button type="button" data-add-item="${item.id}" class="add-cart-btn px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold flex-shrink-0">
+                    +購物車
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      screen.querySelectorAll('.add-cart-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          addToCart(btn.getAttribute('data-add-item'));
+        });
+      });
+
+      screen.querySelectorAll('.rm-cart-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          removeFromCart(parseInt(btn.getAttribute('data-rm-cart'), 10));
+        });
+      });
+
+      const btnPaySelf = document.getElementById('btnPaySelf');
+      if (btnPaySelf) {
+        btnPaySelf.addEventListener('click', () => checkoutCart('self'));
+      }
+
+      screen.querySelectorAll('.pay-boy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          checkoutCart(btn.getAttribute('data-pay-boy'));
+        });
+      });
+    }
+
+    function renderFoodApp(screen) {
+      screen.innerHTML = `
+        <div class="flex flex-col h-full bg-slate-950">
+          <!-- Food Header -->
+          <div class="bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 flex items-center justify-between text-slate-950">
+            <div>
+              <h3 class="text-sm font-black">🍔 閃電美食外送</h3>
+              <p class="text-[10px] font-semibold">遠端投餵男主或點給自己在家拍照存證</p>
+            </div>
+            <div class="text-xs font-black bg-white/30 px-2.5 py-1 rounded-xl">
+              $${state.money.toLocaleString()}
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3 space-y-3">
+            <!-- Step 1: Select Food -->
+            <div class="space-y-1.5">
+              <div class="text-xs font-bold text-amber-300">1️⃣ 選擇外送餐點：</div>
+              <div class="grid grid-cols-1 gap-2">
+                ${FOOD_ITEMS.map(f => {
+                  const sel = state.selectedFoodId === f.id;
+                  return `
+                    <button type="button" data-sel-food="${f.id}" class="sel-food-btn text-left p-2.5 rounded-2xl border transition flex items-center justify-between ${
+                      sel ? 'bg-amber-500/20 border-amber-400' : 'bg-slate-900 border-slate-800 hover:bg-slate-800/60'
+                    }">
+                      <div class="flex items-center gap-2.5">
+                        <span class="text-2xl">${f.icon}</span>
+                        <div>
+                          <div class="text-xs font-bold text-white">${f.name}</div>
+                          <div class="text-[10px] text-slate-400">${f.desc}</div>
+                        </div>
+                      </div>
+                      <span class="text-xs font-bold text-amber-300">$${f.price}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Step 2: Select Recipient -->
+            <div class="space-y-1.5">
+              <div class="text-xs font-bold text-amber-300">2️⃣ 選擇外送收件地址：</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button type="button" data-food-target="self" class="sel-target-btn p-2 rounded-xl border text-xs font-bold ${
+                  state.selectedFoodTarget === 'self' ? 'bg-pink-600 border-pink-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-300'
+                }">
+                  🏠 送到自己家 (降全體懷疑)
+                </button>
+                ${state.boys.map(b => `
+                  <button type="button" data-food-target="${b.id}" class="sel-target-btn p-2 rounded-xl border text-xs font-bold truncate ${
+                    state.selectedFoodTarget === b.id ? 'bg-pink-600 border-pink-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-300'
+                  }">
+                    📍 送給 ${b.name}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Step 3: Delivery Note & Order -->
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2">
+              <div class="text-xs font-bold text-white">3️⃣ 選擇外送小卡備註並下單：</div>
+              <button type="button" data-order-note="sweet" class="order-food-btn w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs transition text-left">
+                💌 備註：「辛苦了～記得趁熱吃喔❤️」（安全暖心送達）
+              </button>
+              ${state.selectedFoodTarget !== 'self' ? `
+                <button type="button" data-order-note="wrong_name" class="order-food-btn w-full py-2 px-3 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-600/40 text-rose-200 font-medium text-xs transition text-left">
+                  💣 備註：「複製貼上上次的群發情話小卡」（手滑寫錯暱稱高風險！）
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+
+      screen.querySelectorAll('.sel-food-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedFoodId = btn.getAttribute('data-sel-food');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+
+      screen.querySelectorAll('.sel-target-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedFoodTarget = btn.getAttribute('data-food-target');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+
+      screen.querySelectorAll('.order-food-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          orderFoodDelivery(btn.getAttribute('data-order-note'));
+        });
+      });
+    }
+
+    function renderRadarApp(screen) {
+      screen.innerHTML = `
+        <div class="flex flex-col h-full bg-slate-950">
+          <div class="bg-gradient-to-r from-purple-700 to-indigo-700 px-4 py-2.5 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-black text-white">📒 海后機密備忘錄</h3>
+              <p class="text-[10px] text-purple-200">六位男主身價、喜好與翻車風險一覽</p>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3 space-y-2.5">
+            ${state.boys.map(b => `
+              <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2">
+                <div class="flex items-center gap-3">
+                  <img src="${b.avatar}" alt="${b.name}" class="w-12 h-12 rounded-2xl border border-pink-500/40" />
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-black text-white">${b.name} (${b.age}歲)</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-bold">${b.tag}</span>
+                    </div>
+                    <div class="text-xs text-slate-300">${b.title}・財力 ${b.wealth}</div>
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">${b.personality}</p>
+                <div class="bg-slate-950 p-2 rounded-xl text-[10px] text-slate-300 space-y-0.5">
+                  <div>🎁 最愛禮物：<span class="text-amber-300 font-bold">${b.favGift}</span></div>
+                  <div>🍱 最愛外送：<span class="text-emerald-300 font-bold">${b.favFood}</span></div>
+                  <div>📍 常駐地點：${b.location}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAll() {
+      renderHeaderAndDashboard();
+      renderPhoneScreen();
+    }
+
+    // ==========================================
+    // Top-Level Event Listeners
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-app-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentApp = btn.getAttribute('data-app');
+          SoundFX.play('pop');
+          renderPhoneScreen();
+        });
+      });
+
+      document.getElementById('btnNextDay').addEventListener('click', () => {
+        advanceNextDay();
+      });
+
+      document.getElementById('btnTriggerEndingNow').addEventListener('click', () => {
+        evaluateAndShowEnding();
+      });
+
+      document.getElementById('btnResetGame').addEventListener('click', () => {
+        SoundFX.play('pop');
+        initGame();
+      });
+
+      document.getElementById('btnToggleMute').addEventListener('click', () => {
+        SoundFX.muted = !SoundFX.muted;
+        document.getElementById('muteIcon').textContent = SoundFX.muted ? '🔇' : '🔊';
+        document.getElementById('muteLabel').textContent = SoundFX.muted ? '已靜音' : '音效開啟';
+      });
+
+      initGame();
+    });
+  </script>
+</body>
+</html>
